@@ -13,6 +13,10 @@ var DB_NAME string
 var JWT_SECRET_KEY string
 var GITHUB_DISPATCH_TOKEN string
 var GITHUB_OWNER string
+var SMTP_HOST string
+var SMTP_PORT string
+var SMTP_USERNAME string
+var SMTP_PASSWORD string
 
 func init() {
 	DB_USER = os.Getenv("DB_USER")
@@ -53,5 +57,25 @@ func init() {
 	GITHUB_OWNER = os.Getenv("GITHUB_OWNER")
 	if GITHUB_OWNER == "" {
 		fmt.Println("Warning: GITHUB_OWNER environment variable is not set")
+	}
+
+	SMTP_HOST = os.Getenv("SMTP_HOST")
+	if SMTP_HOST == "" {
+		fmt.Println("Warning: SMTP_HOST environment variable is not set")
+	}
+
+	SMTP_PORT = os.Getenv("SMTP_PORT")
+	if SMTP_PORT == "" {
+		fmt.Println("Warning: SMTP_PORT environment variable is not set")
+	}
+
+	SMTP_USERNAME = os.Getenv("SMTP_USERNAME")
+	if SMTP_USERNAME == "" {
+		fmt.Println("Warning: SMTP_USERNAME environment variable is not set")
+	}
+
+	SMTP_PASSWORD = os.Getenv("SMTP_PASSWORD")
+	if SMTP_PASSWORD == "" {
+		fmt.Println("Warning: SMTP_PASSWORD environment variable is not set")
 	}
 }
