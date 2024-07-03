@@ -20,11 +20,11 @@ func (projectController *ProjectController) ValidateKey(query handlers.Query) er
 	return projectController.projectService.ValidateKey(projectName, accessKey)
 }
 
-func (projectController *ProjectController) DispatchProject(query handlers.Query) {
+func (projectController *ProjectController) DispatchProject(query handlers.Query) error {
 	projectName := query.Get("project_name")
 	accessKey := query.Get("access_key")
 	repo := query.Get("repo")
 	event := query.Get("event")
 
-	projectController.projectService.TriggerDispatch(projectName, accessKey, repo, event)
+	return projectController.projectService.TriggerDispatch(projectName, accessKey, repo, event)
 }
