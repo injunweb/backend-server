@@ -24,8 +24,6 @@ import (
 var (
 	port = os.Getenv("PORT")
 
-	kubeConfig = os.Getenv("KUBE_CONFIG")
-
 	githubToken = os.Getenv("GITHUB_TOKEN")
 
 	vaultAddr   = os.Getenv("VAULT_ADDR")
@@ -118,9 +116,6 @@ func init() {
 	if err := smtpClient.Auth(smtpAuth); err != nil {
 		log.Fatalf("Failed to authenticate SMTP: %v", err)
 	}
-
-	// Connect to Kubernetes
-
 }
 
 func main() {
