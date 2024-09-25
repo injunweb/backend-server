@@ -1,11 +1,20 @@
-FROM golang:1.22.4
+FROM golang:1.23.1 AS builder
 
 WORKDIR /app
 
-COPY . .
-
+COPY go.mod go.sum ./
 RUN go mod download
 
-RUN go build -o main cmd/main.go
+COPY . .
 
-CMD ["./main"]
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+
+FROM scratch
+
+WORKDIR /app
+
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+COPY --from=builder /app .
+
+CMD ["/app/main"]
