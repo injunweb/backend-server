@@ -58,11 +58,11 @@ type User struct {
 }
 
 const (
-	ApplianceStatusPending  string = "Pending"
-	ApplianceStatusApproved string = "Approved"
+	ApplicationStatusPending  string = "Pending"
+	ApplicationStatusApproved string = "Approved"
 )
 
-type Appliance struct {
+type Application struct {
 	gorm.Model
 	Name        string `json:"name"`
 	GitURL      string `json:"git_url"`
@@ -91,7 +91,7 @@ func init() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	err = db.AutoMigrate(&User{}, &Appliance{})
+	err = db.AutoMigrate(&User{}, &Application{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
@@ -125,14 +125,14 @@ func main() {
 		users.PATCH("/", updateUser)
 	}
 
-	appliances := router.Group("/appliances")
-	appliances.Use(authMiddleware())
+	applications := router.Group("/applications")
+	applications.Use(authMiddleware())
 	{
-		appliances.POST("/", submitAppliance)
-		appliances.GET("/", getAppliances)
-		appliances.GET("/:appId", getAppliance)
+		applications.POST("/", submitApplication)
+		applications.GET("/", getApplications)
+		applications.GET("/:appId", getApplication)
 
-		environments := appliances.Group("/:appId/environments")
+		environments := applications.Group("/:appId/environments")
 		{
 			environments.GET("/", getEnvironments)
 			environments.POST("/", updateEnvironment)
@@ -147,16 +147,16 @@ func main() {
 			users.GET("/", getUsersByAdmin)
 			users.GET("/:userId", getUsersByAdmin)
 
-			appliances := users.Group("/:userId/appliances")
+			applications := users.Group("/:userId/applications")
 			{
-				appliances.GET("/", getAppliancesByAdmin)
+				applications.GET("/", getApplicationsByAdmin)
 			}
 		}
 
-		appliances := admin.Group("/appliances")
+		applications := admin.Group("/applications")
 		{
-			appliances.POST("/:appId/approve", approveApplianceByAdmin)
-			appliances.GET("/:appId", getApplianceByAdmin)
+			applications.POST("/:appId/approve", approveApplicationByAdmin)
+			applications.GET("/:appId", getApplicationByAdmin)
 		}
 	}
 
@@ -419,31 +419,31 @@ func updateUser(c *gin.Context) {
 	})
 }
 
-type GetAppliancesResponseDTO struct {
-	Appliances []struct {
+type GetApplicationsResponseDTO struct {
+	Applications []struct {
 		ID     uint   `json:"id"`
 		Name   string `json:"name"`
 		Status string `json:"status"`
-	} `json:"appliances"`
+	} `json:"applications"`
 	SuccessResponseDTO
 	ErrorResponseDTO
 }
 
-func getAppliances(c *gin.Context) {
+func getApplications(c *gin.Context) {
 	userId, _ := c.Get("user_id")
 
-	var appliances []Appliance
-	if err := db.Where("owner_id = ?", userId).Find(&appliances).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, GetAppliancesResponseDTO{
+	var applications []Application
+	if err := db.Where("owner_id = ?", userId).Find(&applications).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, GetApplicationsResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Failed to retrieve appliances",
+				Error: "Failed to retrieve applications",
 			},
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, GetAppliancesResponseDTO{
-		Appliances: func() []struct {
+	c.JSON(http.StatusOK, GetApplicationsResponseDTO{
+		Applications: func() []struct {
 			ID     uint   `json:"id"`
 			Name   string `json:"name"`
 			Status string `json:"status"`
@@ -453,26 +453,26 @@ func getAppliances(c *gin.Context) {
 				Name   string `json:"name"`
 				Status string `json:"status"`
 			}
-			for _, appliance := range appliances {
+			for _, application := range applications {
 				result = append(result, struct {
 					ID     uint   `json:"id"`
 					Name   string `json:"name"`
 					Status string `json:"status"`
 				}{
-					ID:     appliance.ID,
-					Name:   appliance.Name,
-					Status: appliance.Status,
+					ID:     application.ID,
+					Name:   application.Name,
+					Status: application.Status,
 				})
 			}
 			return result
 		}(),
 		SuccessResponseDTO: SuccessResponseDTO{
-			Message: "Appliances retrieved successfully",
+			Message: "Applications retrieved successfully",
 		},
 	})
 }
 
-type SubmintApplianceRequestDTO struct {
+type SubmintApplicationRequestDTO struct {
 	Name        string `json:"name" binding:"required"`
 	GitURL      string `json:"git_url" binding:"required"`
 	Branch      string `json:"branch" binding:"required"`
@@ -480,17 +480,17 @@ type SubmintApplianceRequestDTO struct {
 	Description string `json:"description" binding:"required"`
 }
 
-type SubmitApplianceResponseDTO struct {
+type SubmitApplicationResponseDTO struct {
 	SuccessResponseDTO
 	ErrorResponseDTO
 }
 
-func submitAppliance(c *gin.Context) {
+func submitApplication(c *gin.Context) {
 	userId, _ := c.Get("user_id")
 
-	var request SubmintApplianceRequestDTO
+	var request SubmintApplicationRequestDTO
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, SubmitApplianceResponseDTO{
+		c.JSON(http.StatusBadRequest, SubmitApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: err.Error(),
 			},
@@ -499,26 +499,26 @@ func submitAppliance(c *gin.Context) {
 	}
 
 	if matched, _ := regexp.MatchString("^[a-z0-9-]+$", request.Name); !matched {
-		c.JSON(http.StatusBadRequest, SubmitApplianceResponseDTO{
+		c.JSON(http.StatusBadRequest, SubmitApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Invalid appliance name",
+				Error: "Invalid application name",
 			},
 		})
 		return
 	}
 
-	var existingAppliance Appliance
-	if err := db.Where("name = ?", request.Name).First(&existingAppliance).Error; err == nil {
-		c.JSON(http.StatusConflict, SubmitApplianceResponseDTO{
+	var existingApplication Application
+	if err := db.Where("name = ?", request.Name).First(&existingApplication).Error; err == nil {
+		c.JSON(http.StatusConflict, SubmitApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Appliance name already exists",
+				Error: "Application name already exists",
 			},
 		})
 		return
 	}
 
 	if request.Port < 1 || request.Port > 65535 {
-		c.JSON(http.StatusBadRequest, SubmitApplianceResponseDTO{
+		c.JSON(http.StatusBadRequest, SubmitApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Invalid port number",
 			},
@@ -526,33 +526,33 @@ func submitAppliance(c *gin.Context) {
 		return
 	}
 
-	appliance := Appliance{
+	application := Application{
 		Name:        request.Name,
 		GitURL:      request.GitURL,
 		Branch:      request.Branch,
 		Port:        request.Port,
 		Description: request.Description,
-		Status:      ApplianceStatusPending,
+		Status:      ApplicationStatusPending,
 		OwnerID:     userId.(uint),
 	}
 
-	if err := db.Create(&appliance).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, SubmitApplianceResponseDTO{
+	if err := db.Create(&application).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, SubmitApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Failed to submit appliance",
+				Error: "Failed to submit application",
 			},
 		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, SubmitApplianceResponseDTO{
+	c.JSON(http.StatusCreated, SubmitApplicationResponseDTO{
 		SuccessResponseDTO: SuccessResponseDTO{
-			Message: "Appliance submitted successfully",
+			Message: "Application submitted successfully",
 		},
 	})
 }
 
-type GetApplianceResponseDTO struct {
+type GetApplicationResponseDTO struct {
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
 	GitURL      string `json:"git_url"`
@@ -565,22 +565,22 @@ type GetApplianceResponseDTO struct {
 	ErrorResponseDTO
 }
 
-func getAppliance(c *gin.Context) {
+func getApplication(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	appID := c.Param("appId")
 
-	var appliance Appliance
-	if err := db.First(&appliance, appID).Error; err != nil {
-		c.JSON(http.StatusNotFound, GetApplianceResponseDTO{
+	var application Application
+	if err := db.First(&application, appID).Error; err != nil {
+		c.JSON(http.StatusNotFound, GetApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Appliance not found",
+				Error: "Application not found",
 			},
 		})
 		return
 	}
 
-	if appliance.OwnerID != userID {
-		c.JSON(http.StatusForbidden, GetApplianceResponseDTO{
+	if application.OwnerID != userID {
+		c.JSON(http.StatusForbidden, GetApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Permission denied",
 			},
@@ -588,17 +588,17 @@ func getAppliance(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, GetApplianceResponseDTO{
-		ID:          appliance.ID,
-		Name:        appliance.Name,
-		GitURL:      appliance.GitURL,
-		Branch:      appliance.Branch,
-		Port:        appliance.Port,
-		Description: appliance.Description,
-		OwnerID:     appliance.OwnerID,
-		Status:      appliance.Status,
+	c.JSON(http.StatusOK, GetApplicationResponseDTO{
+		ID:          application.ID,
+		Name:        application.Name,
+		GitURL:      application.GitURL,
+		Branch:      application.Branch,
+		Port:        application.Port,
+		Description: application.Description,
+		OwnerID:     application.OwnerID,
+		Status:      application.Status,
 		SuccessResponseDTO: SuccessResponseDTO{
-			Message: "Appliance retrieved successfully",
+			Message: "Application retrieved successfully",
 		},
 	})
 }
@@ -616,17 +616,17 @@ func getEnvironments(c *gin.Context) {
 	userId, _ := c.Get("user_id")
 	appID := c.Param("appId")
 
-	var appliance Appliance
-	if err := db.First(&appliance, appID).Error; err != nil {
+	var application Application
+	if err := db.First(&application, appID).Error; err != nil {
 		c.JSON(http.StatusNotFound, GetEnvironmentsResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Appliance not found",
+				Error: "Application not found",
 			},
 		})
 		return
 	}
 
-	if appliance.OwnerID != userId {
+	if application.OwnerID != userId {
 		c.JSON(http.StatusForbidden, GetEnvironmentsResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Permission denied",
@@ -635,16 +635,16 @@ func getEnvironments(c *gin.Context) {
 		return
 	}
 
-	if appliance.Status != ApplianceStatusApproved {
+	if application.Status != ApplicationStatusApproved {
 		c.JSON(http.StatusForbidden, GetEnvironmentsResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Appliance not approved",
+				Error: "Application not approved",
 			},
 		})
 		return
 	}
 
-	secret, err := vaultClient.KVv1(vaultKV).Get(vaultCtx, appliance.Name)
+	secret, err := vaultClient.KVv1(vaultKV).Get(vaultCtx, application.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GetEnvironmentsResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
@@ -706,17 +706,17 @@ func updateEnvironment(c *gin.Context) {
 		return
 	}
 
-	var appliance Appliance
-	if err := db.First(&appliance, appID).Error; err != nil {
+	var application Application
+	if err := db.First(&application, appID).Error; err != nil {
 		c.JSON(http.StatusNotFound, UpdateEnvironmentResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Appliance not found",
+				Error: "Application not found",
 			},
 		})
 		return
 	}
 
-	if appliance.OwnerID != userId {
+	if application.OwnerID != userId {
 		c.JSON(http.StatusForbidden, UpdateEnvironmentResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Permission denied",
@@ -725,10 +725,10 @@ func updateEnvironment(c *gin.Context) {
 		return
 	}
 
-	if appliance.Status != ApplianceStatusApproved {
+	if application.Status != ApplicationStatusApproved {
 		c.JSON(http.StatusForbidden, GetEnvironmentsResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Appliance not approved",
+				Error: "Application not approved",
 			},
 		})
 		return
@@ -739,7 +739,7 @@ func updateEnvironment(c *gin.Context) {
 		data[env.Key] = env.Value
 	}
 
-	err := vaultClient.KVv1(vaultKV).Put(vaultCtx, appliance.Name, data)
+	err := vaultClient.KVv1(vaultKV).Put(vaultCtx, application.Name, data)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, UpdateEnvironmentResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
@@ -807,29 +807,29 @@ func getUsersByAdmin(c *gin.Context) {
 	})
 }
 
-type GetAppliancesByAdminResponseDTO struct {
-	Appliances []struct {
+type GetApplicationsByAdminResponseDTO struct {
+	Applications []struct {
 		ID     uint   `json:"id"`
 		Name   string `json:"name"`
 		Status string `json:"status"`
-	} `json:"appliances"`
+	} `json:"applications"`
 	SuccessResponseDTO
 	ErrorResponseDTO
 }
 
-func getAppliancesByAdmin(c *gin.Context) {
-	var appliances []Appliance
-	if err := db.Find(&appliances).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, GetAppliancesByAdminResponseDTO{
+func getApplicationsByAdmin(c *gin.Context) {
+	var applications []Application
+	if err := db.Find(&applications).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, GetApplicationsByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Failed to retrieve appliances",
+				Error: "Failed to retrieve applications",
 			},
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, GetAppliancesByAdminResponseDTO{
-		Appliances: func() []struct {
+	c.JSON(http.StatusOK, GetApplicationsByAdminResponseDTO{
+		Applications: func() []struct {
 			ID     uint   `json:"id"`
 			Name   string `json:"name"`
 			Status string `json:"status"`
@@ -839,58 +839,58 @@ func getAppliancesByAdmin(c *gin.Context) {
 				Name   string `json:"name"`
 				Status string `json:"status"`
 			}
-			for _, appliance := range appliances {
+			for _, application := range applications {
 				result = append(result, struct {
 					ID     uint   `json:"id"`
 					Name   string `json:"name"`
 					Status string `json:"status"`
 				}{
-					ID:     appliance.ID,
-					Name:   appliance.Name,
-					Status: appliance.Status,
+					ID:     application.ID,
+					Name:   application.Name,
+					Status: application.Status,
 				})
 			}
 			return result
 		}(),
 		SuccessResponseDTO: SuccessResponseDTO{
-			Message: "Appliances retrieved successfully",
+			Message: "Applications retrieved successfully",
 		},
 	})
 }
 
-type ApproveApplianceByAdminRequestDTO struct {
+type ApproveApplicationByAdminRequestDTO struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type ApproveApplianceByAdminResponseDTO struct {
+type ApproveApplicationByAdminResponseDTO struct {
 	SuccessResponseDTO
 	ErrorResponseDTO
 }
 
-func approveApplianceByAdmin(c *gin.Context) {
+func approveApplicationByAdmin(c *gin.Context) {
 	appID := c.Param("appId")
 
-	var appliance Appliance
-	if err := db.First(&appliance, appID).Error; err != nil {
-		c.JSON(http.StatusNotFound, ApproveApplianceByAdminResponseDTO{
+	var application Application
+	if err := db.First(&application, appID).Error; err != nil {
+		c.JSON(http.StatusNotFound, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Appliance not found",
+				Error: "Application not found",
 			},
 		})
 		return
 	}
 
-	if appliance.Status != ApplianceStatusPending {
-		c.JSON(http.StatusForbidden, ApproveApplianceByAdminResponseDTO{
+	if application.Status != ApplicationStatusPending {
+		c.JSON(http.StatusForbidden, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Appliance already approved",
+				Error: "Application already approved",
 			},
 		})
 		return
 	}
 
-	if err := vaultClient.KVv1(vaultKV).Put(vaultCtx, appliance.Name, map[string]interface{}{}); err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
+	if err := vaultClient.KVv1(vaultKV).Put(vaultCtx, application.Name, map[string]interface{}{}); err != nil {
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to write to Vault",
 			},
@@ -906,12 +906,12 @@ func approveApplianceByAdmin(c *gin.Context) {
 		"branch": ""%s",
 		"port": "%d"
 	}
-}`, appliance.Name, appliance.GitURL, appliance.Branch, appliance.Port)
+}`, application.Name, application.GitURL, application.Branch, application.Port)
 
 	req, err := http.NewRequest("POST", "https://api.github.com/repos/injunweb/gitops-repo/dispatches",
 		bytes.NewBuffer([]byte(reqBody)))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to create GitHub request",
 			},
@@ -924,7 +924,7 @@ func approveApplianceByAdmin(c *gin.Context) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to dispatch GitHub event",
 			},
@@ -934,7 +934,7 @@ func approveApplianceByAdmin(c *gin.Context) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: fmt.Sprintf("GitHub dispatch failed with status: %s", resp.Status),
 			},
@@ -964,8 +964,8 @@ func approveApplianceByAdmin(c *gin.Context) {
 		FLUSH PRIVILEGES;
 	`
 
-	if err := rootDb.Exec(query, appliance.Name, appliance.Name, password, appliance.Name, appliance.Name).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
+	if err := rootDb.Exec(query, application.Name, application.Name, password, application.Name, application.Name).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to create database or user",
 			},
@@ -974,8 +974,8 @@ func approveApplianceByAdmin(c *gin.Context) {
 	}
 
 	var owner User
-	if err := db.First(&owner, appliance.OwnerID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
+	if err := db.First(&owner, application.OwnerID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to find user email",
 			},
@@ -985,21 +985,21 @@ func approveApplianceByAdmin(c *gin.Context) {
 
 	msg := fmt.Sprintf(
 		"To: %s\r\n"+
-			"Subject: Appliance Approved\r\n\r\n"+
+			"Subject: Application Approved\r\n\r\n"+
 			"Database Type: mysql\r\n"+
-			"Your appliance has been approved.\r\n\r\n"+
+			"Your application has been approved.\r\n\r\n"+
 			"Database Host: %s\r\n"+
 			"Database Port: %s\r\n"+
 			"Database Name: %s\r\n"+
 			"Database User: %s\r\n"+
 			"Database Password: %s\r\n",
-		owner.Email, dbHost, dbPort, appliance.Name, appliance.Name, password,
+		owner.Email, dbHost, dbPort, application.Name, application.Name, password,
 	)
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", smtpUser)
 	m.SetHeader("To", owner.Email)
-	m.SetHeader("Subject", "Appliance Approved")
+	m.SetHeader("Subject", "Application Approved")
 	m.SetBody("text/plain", msg)
 
 	port, err := strconv.Atoi(smtpPort)
@@ -1009,7 +1009,7 @@ func approveApplianceByAdmin(c *gin.Context) {
 
 	d := gomail.NewDialer(smtpHost, port, smtpUser, smtpPass)
 	if err := d.DialAndSend(m); err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to send email",
 			},
@@ -1017,8 +1017,8 @@ func approveApplianceByAdmin(c *gin.Context) {
 		return
 	}
 
-	if err := db.Save(&appliance).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
+	if err := db.Save(&application).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to create database or user",
 			},
@@ -1026,14 +1026,14 @@ func approveApplianceByAdmin(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, ApproveApplianceByAdminResponseDTO{
+	c.JSON(http.StatusOK, ApproveApplicationByAdminResponseDTO{
 		SuccessResponseDTO: SuccessResponseDTO{
-			Message: "Appliance approved successfully",
+			Message: "Application approved successfully",
 		},
 	})
 }
 
-type GetApplianceByAdminResponseDTO struct {
+type GetApplicationByAdminResponseDTO struct {
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
 	GitURL      string `json:"git_url"`
@@ -1046,30 +1046,30 @@ type GetApplianceByAdminResponseDTO struct {
 	ErrorResponseDTO
 }
 
-func getApplianceByAdmin(c *gin.Context) {
+func getApplicationByAdmin(c *gin.Context) {
 	appID := c.Param("appId")
 
-	var appliance Appliance
-	if err := db.First(&appliance, appID).Error; err != nil {
-		c.JSON(http.StatusNotFound, GetApplianceByAdminResponseDTO{
+	var application Application
+	if err := db.First(&application, appID).Error; err != nil {
+		c.JSON(http.StatusNotFound, GetApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Appliance not found",
+				Error: "Application not found",
 			},
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, GetApplianceByAdminResponseDTO{
-		ID:          appliance.ID,
-		Name:        appliance.Name,
-		GitURL:      appliance.GitURL,
-		Branch:      appliance.Branch,
-		Port:        appliance.Port,
-		Description: appliance.Description,
-		OwnerID:     appliance.OwnerID,
-		Status:      appliance.Status,
+	c.JSON(http.StatusOK, GetApplicationByAdminResponseDTO{
+		ID:          application.ID,
+		Name:        application.Name,
+		GitURL:      application.GitURL,
+		Branch:      application.Branch,
+		Port:        application.Port,
+		Description: application.Description,
+		OwnerID:     application.OwnerID,
+		Status:      application.Status,
 		SuccessResponseDTO: SuccessResponseDTO{
-			Message: "Appliance retrieved successfully",
+			Message: "Application retrieved successfully",
 		},
 	})
 }
