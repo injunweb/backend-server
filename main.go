@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/smtp"
 	"os"
 	"regexp"
 	"strconv"
@@ -17,6 +16,7 @@ import (
 	"github.com/hashicorp/vault/api"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/exp/rand"
+	"gopkg.in/gomail.v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -32,11 +32,10 @@ var (
 	vaultCtx    = context.Background()
 	vaultClient *api.Client
 
-	smtpHost   = os.Getenv("SMTP_HOST")
-	smtpPort   = 587
-	smtpUser   = os.Getenv("SMTP_USER")
-	smtpPass   = os.Getenv("SMTP_PASS")
-	smtpClient *smtp.Client
+	smtpHost = os.Getenv("SMTP_HOST")
+	smtpPort = os.Getenv("SMTP_PORT")
+	smtpUser = os.Getenv("SMTP_USER")
+	smtpPass = os.Getenv("SMTP_PASS")
 
 	jwtSecret      = []byte(os.Getenv("JWT_SECRET"))
 	jwtExpiryHours = os.Getenv("JWT_EXPIRY_HOURS")
@@ -105,17 +104,6 @@ func init() {
 		log.Fatalf("Failed to connect to Vault: %v", err)
 	}
 	vaultClient.SetToken(vaultToken)
-
-	// Connect to SMTP
-	smtpAuth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
-	smtpAddr := fmt.Sprintf("%s:%d", smtpHost, smtpPort)
-	smtpClient, err = smtp.Dial(smtpAddr)
-	if err != nil {
-		log.Fatalf("Failed to connect to SMTP: %v", err)
-	}
-	if err := smtpClient.Auth(smtpAuth); err != nil {
-		log.Fatalf("Failed to authenticate SMTP: %v", err)
-	}
 }
 
 func main() {
@@ -1008,53 +996,27 @@ func approveApplianceByAdmin(c *gin.Context) {
 		owner.Email, dbHost, dbPort, appliance.Name, appliance.Name, password,
 	)
 
-	if err := smtpClient.Mail(smtpUser); err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
-			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Failed to set SMTP sender",
-			},
-		})
-		return
-	}
+	m := gomail.NewMessage()
+	m.SetHeader("From", smtpUser)
+	m.SetHeader("To", owner.Email)
+	m.SetHeader("Subject", "Appliance Approved")
+	m.SetBody("text/plain", msg)
 
-	if err := smtpClient.Rcpt(owner.Email); err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
-			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Failed to set SMTP recipient",
-			},
-		})
-		return
-	}
-
-	w, err := smtpClient.Data()
+	port, err := strconv.Atoi(smtpPort)
 	if err != nil {
+		log.Fatalf("Invalid SMTP port: %v", err)
+	}
+
+	d := gomail.NewDialer(smtpHost, port, smtpUser, smtpPass)
+	if err := d.DialAndSend(m); err != nil {
 		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Failed to send email data",
+				Error: "Failed to send email",
 			},
 		})
 		return
 	}
 
-	_, err = w.Write([]byte(msg))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
-			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Failed to write email message",
-			},
-		})
-		return
-	}
-
-	err = w.Close()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
-			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Failed to close email writer",
-			},
-		})
-		return
-	}
 	if err := db.Save(&appliance).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, ApproveApplianceByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
