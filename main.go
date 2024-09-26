@@ -858,10 +858,6 @@ func getApplicationsByAdmin(c *gin.Context) {
 	})
 }
 
-type ApproveApplicationByAdminRequestDTO struct {
-	Password string `json:"password" binding:"required"`
-}
-
 type ApproveApplicationByAdminResponseDTO struct {
 	SuccessResponseDTO
 	ErrorResponseDTO
