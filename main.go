@@ -372,8 +372,8 @@ func getUser(c *gin.Context) {
 }
 
 type UpdateUserRequestDTO struct {
-	Email    string `json:"email" binding:"required"`
-	Username string `json:"username" binding:"required"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 type UpdateUserResponseDTO struct {
