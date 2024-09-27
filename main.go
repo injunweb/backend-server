@@ -121,21 +121,21 @@ func main() {
 	users := router.Group("/users")
 	users.Use(authMiddleware())
 	{
-		users.GET("/", getUser)
-		users.PATCH("/", updateUser)
+		users.GET("", getUser)
+		users.PATCH("", updateUser)
 	}
 
 	applications := router.Group("/applications")
 	applications.Use(authMiddleware())
 	{
-		applications.POST("/", submitApplication)
-		applications.GET("/", getApplications)
+		applications.POST("", submitApplication)
+		applications.GET("", getApplications)
 		applications.GET("/:appId", getApplication)
 
 		environments := applications.Group("/:appId/environments")
 		{
-			environments.GET("/", getEnvironments)
-			environments.POST("/", updateEnvironment)
+			environments.GET("", getEnvironments)
+			environments.POST("", updateEnvironment)
 		}
 	}
 
@@ -144,12 +144,12 @@ func main() {
 	{
 		users := admin.Group("/users")
 		{
-			users.GET("/", getUsersByAdmin)
+			users.GET("", getUsersByAdmin)
 			users.GET("/:userId", getUsersByAdmin)
 
 			applications := users.Group("/:userId/applications")
 			{
-				applications.GET("/", getApplicationsByAdmin)
+				applications.GET("", getApplicationsByAdmin)
 			}
 		}
 
