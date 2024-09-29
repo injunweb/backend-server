@@ -145,7 +145,7 @@ func main() {
 		users := admin.Group("/users")
 		{
 			users.GET("", getUsersByAdmin)
-			users.GET("/:userId", getUsersByAdmin)
+			users.GET("/:userId", getUserByAdmin)
 
 			applications := users.Group("/:userId/applications")
 			{
@@ -811,6 +811,39 @@ func getUsersByAdmin(c *gin.Context) {
 		}(),
 		SuccessResponseDTO: SuccessResponseDTO{
 			Message: "Users retrieved successfully",
+		},
+	})
+}
+
+type GetUserByAdminResponseDTO struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	IsAdmin  bool   `json:"is_admin"`
+	SuccessResponseDTO
+	ErrorResponseDTO
+}
+
+func getUserByAdmin(c *gin.Context) {
+	userID := c.Param("userId")
+
+	var user User
+	if err := db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, GetUserByAdminResponseDTO{
+			ErrorResponseDTO: ErrorResponseDTO{
+				Error: "User not found",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, GetUserByAdminResponseDTO{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		IsAdmin:  user.IsAdmin,
+		SuccessResponseDTO: SuccessResponseDTO{
+			Message: "User retrieved successfully",
 		},
 	})
 }
