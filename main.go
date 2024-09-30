@@ -238,9 +238,10 @@ func login(c *gin.Context) {
 	if err := c.ShouldBindJSON(&loginRequest); err != nil {
 		c.JSON(http.StatusBadRequest, LoginResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: err.Error(),
+				Error: "Invalid request",
 			},
 		})
+		log.Printf("Failed to bind JSON: %v", err)
 		return
 	}
 
@@ -251,6 +252,7 @@ func login(c *gin.Context) {
 				Error: "Invalid credentials",
 			},
 		})
+		log.Printf("Failed to find user: %v", err)
 		return
 	}
 
@@ -260,6 +262,7 @@ func login(c *gin.Context) {
 				Error: "Invalid credentials",
 			},
 		})
+		log.Printf("Failed to compare password: %v", err)
 		return
 	}
 
@@ -277,6 +280,7 @@ func login(c *gin.Context) {
 				Error: "Failed to generate token",
 			},
 		})
+		log.Printf("Failed to generate token: %v", err)
 		return
 	}
 
@@ -304,9 +308,10 @@ func register(c *gin.Context) {
 	if err := c.ShouldBindJSON(&registerRequest); err != nil {
 		c.JSON(http.StatusBadRequest, RegisterResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: err.Error(),
+				Error: "Invalid request",
 			},
 		})
+		log.Printf("Failed to bind JSON: %v", err)
 		return
 	}
 
@@ -317,6 +322,7 @@ func register(c *gin.Context) {
 				Error: "Failed to hash password",
 			},
 		})
+		log.Printf("Failed to hash password: %v", err)
 		return
 	}
 
@@ -333,6 +339,7 @@ func register(c *gin.Context) {
 				Error: "Failed to register user",
 			},
 		})
+		log.Printf("Failed to create user: %v", err)
 		return
 	}
 
@@ -362,6 +369,7 @@ func getUser(c *gin.Context) {
 				Error: "User not found",
 			},
 		})
+		log.Printf("Failed to find user: %v", err)
 		return
 	}
 
@@ -393,9 +401,10 @@ func updateUser(c *gin.Context) {
 	if err := c.ShouldBindJSON(&updateRequest); err != nil {
 		c.JSON(http.StatusBadRequest, UpdateUserResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: err.Error(),
+				Error: "Invalid request",
 			},
 		})
+		log.Printf("Failed to bind JSON: %v", err)
 		return
 	}
 
@@ -406,6 +415,7 @@ func updateUser(c *gin.Context) {
 				Error: "User not found",
 			},
 		})
+		log.Printf("Failed to find user: %v", err)
 		return
 	}
 
@@ -422,6 +432,7 @@ func updateUser(c *gin.Context) {
 				Error: "Failed to update user",
 			},
 		})
+		log.Printf("Failed to save user: %v", err)
 		return
 	}
 
@@ -452,6 +463,7 @@ func getApplications(c *gin.Context) {
 				Error: "Failed to retrieve applications",
 			},
 		})
+		log.Printf("Failed to find applications: %v", err)
 		return
 	}
 
@@ -505,9 +517,10 @@ func submitApplication(c *gin.Context) {
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, SubmitApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: err.Error(),
+				Error: "Invalid request",
 			},
 		})
+		log.Printf("Failed to bind JSON: %v", err)
 		return
 	}
 
@@ -517,6 +530,7 @@ func submitApplication(c *gin.Context) {
 				Error: "Invalid application name",
 			},
 		})
+		log.Printf("Invalid application name: %s", request.Name)
 		return
 	}
 
@@ -527,6 +541,7 @@ func submitApplication(c *gin.Context) {
 				Error: "Application name already exists",
 			},
 		})
+		log.Printf("Application name already exists: %s", request.Name)
 		return
 	}
 
@@ -536,6 +551,7 @@ func submitApplication(c *gin.Context) {
 				Error: "Invalid port number",
 			},
 		})
+		log.Printf("Invalid port number: %d", request.Port)
 		return
 	}
 
@@ -555,6 +571,7 @@ func submitApplication(c *gin.Context) {
 				Error: "Failed to submit application",
 			},
 		})
+		log.Printf("Failed to create application: %v", err)
 		return
 	}
 
@@ -589,6 +606,7 @@ func getApplication(c *gin.Context) {
 				Error: "Application not found",
 			},
 		})
+		log.Printf("Failed to find application: %v", err)
 		return
 	}
 
@@ -598,6 +616,7 @@ func getApplication(c *gin.Context) {
 				Error: "Permission denied",
 			},
 		})
+		log.Printf("Permission denied for application: %d", application.ID)
 		return
 	}
 
@@ -636,6 +655,7 @@ func getEnvironments(c *gin.Context) {
 				Error: "Application not found",
 			},
 		})
+		log.Printf("Failed to find application: %v", err)
 		return
 	}
 
@@ -645,6 +665,7 @@ func getEnvironments(c *gin.Context) {
 				Error: "Permission denied",
 			},
 		})
+		log.Printf("Permission denied for application: %d", application.ID)
 		return
 	}
 
@@ -654,6 +675,7 @@ func getEnvironments(c *gin.Context) {
 				Error: "Application not approved",
 			},
 		})
+		log.Printf("Application not approved: %d", application.ID)
 		return
 	}
 
@@ -664,6 +686,7 @@ func getEnvironments(c *gin.Context) {
 				Error: "Failed to read from Vault",
 			},
 		})
+		log.Printf("Failed to read from Vault: %v", err)
 		return
 	}
 
@@ -713,9 +736,10 @@ func updateEnvironment(c *gin.Context) {
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, UpdateEnvironmentResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: err.Error(),
+				Error: "Invalid request",
 			},
 		})
+		log.Printf("Failed to bind JSON: %v", err)
 		return
 	}
 
@@ -726,6 +750,7 @@ func updateEnvironment(c *gin.Context) {
 				Error: "Application not found",
 			},
 		})
+		log.Printf("Failed to find application: %v", err)
 		return
 	}
 
@@ -735,6 +760,7 @@ func updateEnvironment(c *gin.Context) {
 				Error: "Permission denied",
 			},
 		})
+		log.Printf("Permission denied for application: %d", application.ID)
 		return
 	}
 
@@ -744,6 +770,7 @@ func updateEnvironment(c *gin.Context) {
 				Error: "Application not approved",
 			},
 		})
+		log.Printf("Application not approved: %d", application.ID)
 		return
 	}
 
@@ -759,6 +786,7 @@ func updateEnvironment(c *gin.Context) {
 				Error: "Failed to write to Vault",
 			},
 		})
+		log.Printf("Failed to write to Vault: %v", err)
 		return
 	}
 
@@ -787,6 +815,7 @@ func getUsersByAdmin(c *gin.Context) {
 				Error: "Failed to retrieve users",
 			},
 		})
+		log.Printf("Failed to find users: %v", err)
 		return
 	}
 
@@ -839,6 +868,7 @@ func getUserByAdmin(c *gin.Context) {
 				Error: "User not found",
 			},
 		})
+		log.Printf("Failed to find user: %v", err)
 		return
 	}
 
@@ -871,6 +901,7 @@ func getApplicationsByAdmin(c *gin.Context) {
 				Error: "Failed to retrieve applications",
 			},
 		})
+		log.Printf("Failed to find applications: %v", err)
 		return
 	}
 
@@ -919,6 +950,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: "Application not found",
 			},
 		})
+		log.Printf("Failed to find application: %v", err)
 		return
 	}
 
@@ -928,6 +960,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: "Application already approved",
 			},
 		})
+		log.Printf("Application already approved: %d", application.ID)
 		return
 	}
 
@@ -937,6 +970,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: "Failed to write to Vault",
 			},
 		})
+		log.Printf("Failed to write to Vault: %v", err)
 		return
 	}
 
@@ -958,6 +992,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: "Failed to create GitHub request",
 			},
 		})
+		log.Printf("Failed to create GitHub request: %v", err)
 		return
 	}
 
@@ -971,6 +1006,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: "Failed to dispatch GitHub event",
 			},
 		})
+		log.Printf("Failed to dispatch GitHub event: %v", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -981,6 +1017,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: fmt.Sprintf("GitHub dispatch failed with status: %s", resp.Status),
 			},
 		})
+		log.Printf("GitHub dispatch failed with status: %s", resp.Status)
 		return
 	}
 
@@ -996,7 +1033,13 @@ func approveApplicationByAdmin(c *gin.Context) {
 
 	rootDb, err := gorm.Open(mysql.Open(rootDsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to root database: %v", err)
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
+			ErrorResponseDTO: ErrorResponseDTO{
+				Error: "Failed to connect to root database",
+			},
+		})
+		log.Printf("Failed to connect to root database: %v", err)
+		return
 	}
 
 	query := `
@@ -1012,6 +1055,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: "Failed to create database or user",
 			},
 		})
+		log.Printf("Failed to create database or user: %v", err)
 		return
 	}
 
@@ -1022,6 +1066,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: "Failed to find user email",
 			},
 		})
+		log.Printf("Failed to find user email: %v", err)
 		return
 	}
 
@@ -1046,7 +1091,13 @@ func approveApplicationByAdmin(c *gin.Context) {
 
 	port, err := strconv.Atoi(smtpPort)
 	if err != nil {
-		log.Fatalf("Invalid SMTP port: %v", err)
+		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
+			ErrorResponseDTO: ErrorResponseDTO{
+				Error: "Failed to send email",
+			},
+		})
+		log.Printf("Failed to convert SMTP port: %v", err)
+		return
 	}
 
 	d := gomail.NewDialer(smtpHost, port, smtpUser, smtpPass)
@@ -1056,6 +1107,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: "Failed to send email",
 			},
 		})
+		log.Printf("Failed to send email: %v", err)
 		return
 	}
 
@@ -1065,6 +1117,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 				Error: "Failed to create database or user",
 			},
 		})
+		log.Printf("Failed to create database or user: %v", err)
 		return
 	}
 
@@ -1098,6 +1151,7 @@ func getApplicationByAdmin(c *gin.Context) {
 				Error: "Application not found",
 			},
 		})
+		log.Printf("Failed to find application: %v", err)
 		return
 	}
 
