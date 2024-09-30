@@ -524,7 +524,9 @@ func submitApplication(c *gin.Context) {
 		return
 	}
 
-	if matched, _ := regexp.MatchString("^[a-z0-9-]+$", request.Name); !matched {
+	pattern := `^(?!.*(--|#|;|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bEXEC\b|\bUNION\b|\bOR\b|\bAND\b))[a-z0-9-]+$`
+
+	if matched, _ := regexp.MatchString(pattern, request.Name); !matched {
 		c.JSON(http.StatusBadRequest, SubmitApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Invalid application name",
@@ -1042,14 +1044,14 @@ func approveApplicationByAdmin(c *gin.Context) {
 		return
 	}
 
-	query := `
-		CREATE DATABASE IF NOT EXISTS ?;
-		CREATE USER IF NOT EXISTS ?@'%' IDENTIFIED BY ?;
-		GRANT ALL PRIVILEGES ON ?.* TO ?@'%';
+	query := fmt.Sprintf(`
+		CREATE DATABASE IF NOT EXISTS %s;
+		CREATE USER IF NOT EXISTS %s@'%%' IDENTIFIED BY '%s';
+		GRANT ALL PRIVILEGES ON %s.* TO %s@'%%';
 		FLUSH PRIVILEGES;
-	`
+	`, application.Name, application.Name, password, application.Name, application.Name)
 
-	if err := rootDb.Exec(query, application.Name, application.Name, password, application.Name, application.Name).Error; err != nil {
+	if err := rootDb.Exec(query).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to create database or user",
