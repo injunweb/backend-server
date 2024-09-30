@@ -1126,6 +1126,8 @@ func approveApplicationByAdmin(c *gin.Context) {
 		return
 	}
 
+	application.Status = ApplicationStatusApproved
+
 	if err := db.Save(&application).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
