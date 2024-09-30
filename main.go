@@ -967,7 +967,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 		return
 	}
 
-	if err := vaultClient.KVv1(vaultKV).Put(vaultCtx, application.Name, map[string]interface{}{"": ""}); err != nil {
+	if err := vaultClient.KVv1(vaultKV).Put(vaultCtx, application.Name, map[string]interface{}{"hostname": application.Name + ".injunweb.com"}); err != nil {
 		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to write to Vault",
