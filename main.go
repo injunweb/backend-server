@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/hashicorp/vault/api"
@@ -114,6 +115,13 @@ func init() {
 
 func main() {
 	router := gin.Default()
+
+	router.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"https://dashboard.injunweb.com",
+			"http://localhost:5173",
+		},
+	}))
 
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
