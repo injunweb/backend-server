@@ -979,7 +979,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 	"client_payload": {
 		"appName": "%s",
 		"git": "%s",
-		"branch": ""%s",
+		"branch": "%s",
 		"port": "%d"
 	}
 }`, application.Name, application.GitURL, application.Branch, application.Port)
