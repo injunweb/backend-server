@@ -121,6 +121,9 @@ func main() {
 			"https://dashboard.injunweb.com",
 			"http://localhost:5173",
 		},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
 	}))
 
 	router.Use(gin.Logger())
