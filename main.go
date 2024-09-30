@@ -97,11 +97,16 @@ func init() {
 	}
 
 	// Connect to Vault
-	vaultClient, err = api.NewClient(&api.Config{
-		Address: vaultAddr,
-	})
+	config := api.DefaultConfig()
+	config.Address = vaultAddr
+
+	vaultClient, err = api.NewClient(config)
 	if err != nil {
-		log.Fatalf("Failed to connect to Vault: %v", err)
+		log.Fatalf("Failed to create Vault client: %v", err)
+	}
+
+	if vaultClient == nil {
+		log.Fatalf("Vault client is nil, check initialization.")
 	}
 	vaultClient.SetToken(vaultToken)
 }
@@ -926,7 +931,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 		return
 	}
 
-	if err := vaultClient.KVv1(vaultKV).Put(vaultCtx, application.Name, map[string]interface{}{}); err != nil {
+	if err := vaultClient.KVv1(vaultKV).Put(vaultCtx, application.Name, map[string]interface{}{"": ""}); err != nil {
 		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to write to Vault",
