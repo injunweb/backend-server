@@ -9,7 +9,6 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -1056,14 +1055,13 @@ func approveApplicationByAdmin(c *gin.Context) {
 		return
 	}
 
-	query := fmt.Sprintf(`
-		CREATE DATABASE IF NOT EXISTS %s;
-		CREATE USER IF NOT EXISTS %s@'%%' IDENTIFIED BY '%s';
-		GRANT ALL PRIVILEGES ON %s.* TO %s@'%%';
-		FLUSH PRIVILEGES;
-	`, application.Name, application.Name, password, application.Name, application.Name)
+	querys := []string{
+		fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s;", application.Name),
+		fmt.Sprintf("CREATE USER IF NOT EXISTS %s@'%%' IDENTIFIED BY '%s';", application.Name, password),
+		fmt.Sprintf("GRANT ALL PRIVILEGES ON %s.* TO %s@'%%';", application.Name, application.Name),
+		"FLUSH PRIVILEGES;",
+	}
 
-	querys := strings.Split(query, ";")
 	for _, query := range querys {
 		if err := rootDb.Exec(query).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
@@ -1074,16 +1072,6 @@ func approveApplicationByAdmin(c *gin.Context) {
 			log.Printf("Failed to create database or user: %v", err)
 			return
 		}
-	}
-
-	if err := rootDb.Exec(query).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
-			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Failed to create database or user",
-			},
-		})
-		log.Printf("Failed to create database or user: %v", err)
-		return
 	}
 
 	var owner User
