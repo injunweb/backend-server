@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -1050,6 +1051,19 @@ func approveApplicationByAdmin(c *gin.Context) {
 		GRANT ALL PRIVILEGES ON %s.* TO %s@'%%';
 		FLUSH PRIVILEGES;
 	`, application.Name, application.Name, password, application.Name, application.Name)
+
+	querys := strings.Split(query, ";")
+	for _, query := range querys {
+		if err := rootDb.Exec(query).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
+				ErrorResponseDTO: ErrorResponseDTO{
+					Error: "Failed to create database or user",
+				},
+			})
+			log.Printf("Failed to create database or user: %v", err)
+			return
+		}
+	}
 
 	if err := rootDb.Exec(query).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, ApproveApplicationByAdminResponseDTO{
