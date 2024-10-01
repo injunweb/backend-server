@@ -33,10 +33,11 @@ var (
 	vaultCtx    = context.Background()
 	vaultClient *api.Client
 
-	smtpHost = os.Getenv("SMTP_HOST")
-	smtpPort = os.Getenv("SMTP_PORT")
-	smtpUser = os.Getenv("SMTP_USER")
-	smtpPass = os.Getenv("SMTP_PASS")
+	smtpHost        = os.Getenv("SMTP_HOST")
+	smtpPort        = os.Getenv("SMTP_PORT")
+	smtpSenderEmail = os.Getenv("SMTP_SENDER_EMAIL")
+	smtpUser        = os.Getenv("SMTP_USER")
+	smtpPass        = os.Getenv("SMTP_PASS")
 
 	jwtSecret      = []byte(os.Getenv("JWT_SECRET"))
 	jwtExpiryHours = os.Getenv("JWT_EXPIRY_HOURS")
@@ -1099,7 +1100,7 @@ func approveApplicationByAdmin(c *gin.Context) {
 	)
 
 	m := gomail.NewMessage()
-	m.SetHeader("From", smtpUser)
+	m.SetHeader("From", smtpSenderEmail)
 	m.SetHeader("To", owner.Email)
 	m.SetHeader("Subject", "Application Approved")
 	m.SetBody("text/plain", msg)
