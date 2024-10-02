@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -533,16 +534,30 @@ func submitApplication(c *gin.Context) {
 		return
 	}
 
-	pattern := `^(?!.*(--|#|;|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bEXEC\b|\bUNION\b|\bOR\b|\bAND\b))[a-z0-9\-]+$`
+	pattern := `^[a-z0-9\-]+$`
+	forbiddenKeywords := []string{"--", "#", ";", "SELECT", "INSERT", "UPDATE", "DELETE", "DROP", "EXEC", "UNION", "OR", "AND"}
 
-	if matched, err := regexp.MatchString(pattern, request.Name); !matched {
+	if matched, err := regexp.MatchString(pattern, request.Name); !matched || err != nil {
 		c.JSON(http.StatusBadRequest, SubmitApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
-				Error: "Invalid application name",
+				Error: "Invalid application name format",
 			},
 		})
 		log.Printf("Invalid application name: %s, error: %v", request.Name, err)
 		return
+	}
+
+	nameUpper := strings.ToUpper(request.Name)
+	for _, keyword := range forbiddenKeywords {
+		if strings.Contains(nameUpper, keyword) {
+			c.JSON(http.StatusBadRequest, SubmitApplicationResponseDTO{
+				ErrorResponseDTO: ErrorResponseDTO{
+					Error: "Application name contains forbidden characters or SQL keywords",
+				},
+			})
+			log.Printf("Application name contains forbidden keyword: %s", request.Name)
+			return
+		}
 	}
 
 	var existingApplication Application
@@ -552,7 +567,7 @@ func submitApplication(c *gin.Context) {
 				Error: "Application name already exists",
 			},
 		})
-		log.Printf("Application name already exists: %s, error: %v", request.Name, err)
+		log.Printf("Application name already exists: %s", request.Name)
 		return
 	}
 
