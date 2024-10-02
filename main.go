@@ -126,9 +126,6 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
-
 	auth := router.Group("/auth")
 	{
 		auth.POST("/login", login)
