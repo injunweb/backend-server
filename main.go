@@ -536,7 +536,7 @@ func submitApplication(c *gin.Context) {
 		return
 	}
 
-	pattern := `^(?!.*(--|#|;|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bEXEC\b|\bUNION\b|\bOR\b|\bAND\b))[a-z0-9-]+$`
+	pattern := `^(?!.*(--|#|;|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bEXEC\b|\bUNION\b|\bOR\b|\bAND\b))[a-z0-9\-]+$`
 
 	if matched, _ := regexp.MatchString(pattern, request.Name); !matched {
 		c.JSON(http.StatusBadRequest, SubmitApplicationResponseDTO{
