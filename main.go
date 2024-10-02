@@ -204,9 +204,9 @@ func authMiddleware() gin.HandlerFunc {
 		})
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			userID := uint(claims["user_id"].(float64))
+			userId := uint(claims["user_id"].(float64))
 			isAdmin := claims["is_admin"].(bool)
-			c.Set("user_id", userID)
+			c.Set("user_id", userId)
 			c.Set("is_admin", isAdmin)
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
@@ -369,10 +369,10 @@ type GetUserResponseDTO struct {
 }
 
 func getUser(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userId, _ := c.Get("user_id")
 
 	var user User
-	if err := db.First(&user, userID).Error; err != nil {
+	if err := db.First(&user, userId).Error; err != nil {
 		c.JSON(http.StatusNotFound, GetUserResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "User not found",
@@ -404,7 +404,7 @@ type UpdateUserResponseDTO struct {
 }
 
 func updateUser(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userId, _ := c.Get("user_id")
 
 	var updateRequest UpdateUserRequestDTO
 	if err := c.ShouldBindJSON(&updateRequest); err != nil {
@@ -418,7 +418,7 @@ func updateUser(c *gin.Context) {
 	}
 
 	var user User
-	if err := db.First(&user, userID).Error; err != nil {
+	if err := db.First(&user, userId).Error; err != nil {
 		c.JSON(http.StatusNotFound, UpdateUserResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "User not found",
@@ -607,11 +607,11 @@ type GetApplicationResponseDTO struct {
 }
 
 func getApplication(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	appID := c.Param("appId")
+	userId, _ := c.Get("user_id")
+	appId := c.Param("appId")
 
 	var application Application
-	if err := db.First(&application, appID).Error; err != nil {
+	if err := db.First(&application, appId).Error; err != nil {
 		c.JSON(http.StatusNotFound, GetApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Application not found",
@@ -621,7 +621,7 @@ func getApplication(c *gin.Context) {
 		return
 	}
 
-	if application.OwnerID != userID {
+	if application.OwnerID != userId {
 		c.JSON(http.StatusForbidden, GetApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Permission denied",
@@ -657,10 +657,10 @@ type GetEnvironmentsResponseDTO struct {
 
 func getEnvironments(c *gin.Context) {
 	userId, _ := c.Get("user_id")
-	appID := c.Param("appId")
+	appId := c.Param("appId")
 
 	var application Application
-	if err := db.First(&application, appID).Error; err != nil {
+	if err := db.First(&application, appId).Error; err != nil {
 		c.JSON(http.StatusNotFound, GetEnvironmentsResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Application not found",
@@ -741,7 +741,7 @@ type UpdateEnvironmentResponseDTO struct {
 
 func updateEnvironment(c *gin.Context) {
 	userId, _ := c.Get("user_id")
-	appID := c.Param("appId")
+	appId := c.Param("appId")
 
 	var request UpdateEnvironmentRequestDTO
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -755,7 +755,7 @@ func updateEnvironment(c *gin.Context) {
 	}
 
 	var application Application
-	if err := db.First(&application, appID).Error; err != nil {
+	if err := db.First(&application, appId).Error; err != nil {
 		c.JSON(http.StatusNotFound, UpdateEnvironmentResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Application not found",
@@ -870,10 +870,10 @@ type GetUserByAdminResponseDTO struct {
 }
 
 func getUserByAdmin(c *gin.Context) {
-	userID := c.Param("userId")
+	userId := c.Param("userId")
 
 	var user User
-	if err := db.First(&user, userID).Error; err != nil {
+	if err := db.First(&user, userId).Error; err != nil {
 		c.JSON(http.StatusNotFound, GetUserByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "User not found",
@@ -954,10 +954,10 @@ type ApproveApplicationByAdminResponseDTO struct {
 }
 
 func approveApplicationByAdmin(c *gin.Context) {
-	appID := c.Param("appId")
+	appId := c.Param("appId")
 
 	var application Application
-	if err := db.First(&application, appID).Error; err != nil {
+	if err := db.First(&application, appId).Error; err != nil {
 		c.JSON(http.StatusNotFound, ApproveApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Application not found",
@@ -1159,10 +1159,10 @@ type GetApplicationByAdminResponseDTO struct {
 }
 
 func getApplicationByAdmin(c *gin.Context) {
-	appID := c.Param("appId")
+	appId := c.Param("appId")
 
 	var application Application
-	if err := db.First(&application, appID).Error; err != nil {
+	if err := db.First(&application, appId).Error; err != nil {
 		c.JSON(http.StatusNotFound, GetApplicationByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Application not found",
