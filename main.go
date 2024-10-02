@@ -905,8 +905,10 @@ type GetApplicationsByAdminResponseDTO struct {
 }
 
 func getApplicationsByAdmin(c *gin.Context) {
+	userId := c.Param("userId")
+
 	var applications []Application
-	if err := db.Find(&applications).Error; err != nil {
+	if err := db.Where("owner_id = ?", userId).Find(&applications).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, GetApplicationsByAdminResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Failed to retrieve applications",
