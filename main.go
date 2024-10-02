@@ -538,13 +538,13 @@ func submitApplication(c *gin.Context) {
 
 	pattern := `^(?!.*(--|#|;|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bEXEC\b|\bUNION\b|\bOR\b|\bAND\b))[a-z0-9\-]+$`
 
-	if matched, _ := regexp.MatchString(pattern, request.Name); !matched {
+	if matched, err := regexp.MatchString(pattern, request.Name); !matched {
 		c.JSON(http.StatusBadRequest, SubmitApplicationResponseDTO{
 			ErrorResponseDTO: ErrorResponseDTO{
 				Error: "Invalid application name",
 			},
 		})
-		log.Printf("Invalid application name: %s", request.Name)
+		log.Printf("Invalid application name: %s, error: %v", request.Name, err)
 		return
 	}
 
@@ -555,7 +555,7 @@ func submitApplication(c *gin.Context) {
 				Error: "Application name already exists",
 			},
 		})
-		log.Printf("Application name already exists: %s", request.Name)
+		log.Printf("Application name already exists: %s, error: %v", request.Name, err)
 		return
 	}
 
