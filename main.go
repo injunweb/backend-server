@@ -1071,9 +1071,9 @@ func approveApplicationByAdmin(c *gin.Context) {
 	}
 
 	querys := []string{
-		fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s;", application.Name),
-		fmt.Sprintf("CREATE USER IF NOT EXISTS %s@'%%' IDENTIFIED BY '%s';", application.Name, password),
-		fmt.Sprintf("GRANT ALL PRIVILEGES ON %s.* TO %s@'%%';", application.Name, application.Name),
+		fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`;", application.Name),
+		fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'@'%%' IDENTIFIED BY '%s';", application.Name, password),
+		fmt.Sprintf("GRANT ALL PRIVILEGES ON `%s`.* TO '%s'@'%%';", application.Name, application.Name),
 		"FLUSH PRIVILEGES;",
 	}
 
