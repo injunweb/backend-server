@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/injunweb/backend-server/internal/api"
 	"github.com/injunweb/backend-server/internal/config"
@@ -40,7 +39,7 @@ func main() {
 
 	api.SetupRoutes(router)
 
-	if err := router.Run(":" + os.Getenv("PORT")); err != nil {
+	if err := router.Run(":" + config.AppConfig.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
