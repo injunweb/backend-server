@@ -9,6 +9,7 @@ import (
 	"github.com/injunweb/backend-server/internal/models"
 	"github.com/injunweb/backend-server/pkg/database"
 	"github.com/injunweb/backend-server/pkg/github"
+	"github.com/injunweb/backend-server/pkg/harbor"
 	"github.com/injunweb/backend-server/pkg/kubernetes"
 	"github.com/injunweb/backend-server/pkg/vault"
 
@@ -159,6 +160,14 @@ func (s *ApplicationService) DeleteApplication(userId uint, appId uint) (DeleteA
 		if kubernetes.NamespaceExists(application.Name) {
 			if err := kubernetes.DeleteNamespace(application.Name); err != nil {
 				return DeleteApplicationResponse{}, fmt.Errorf("failed to delete namespace: %v", err)
+			}
+		}
+
+		if exists, err := harbor.RepositoryExists(application.Name); err != nil {
+			return DeleteApplicationResponse{}, fmt.Errorf("failed to check Harbor repository: %v", err)
+		} else if exists {
+			if err := harbor.DeleteRepository(application.Name); err != nil {
+				return DeleteApplicationResponse{}, fmt.Errorf("failed to delete Harbor repository: %v", err)
 			}
 		}
 
