@@ -38,6 +38,15 @@ func Init() error {
 	return nil
 }
 
+func NamespaceExists(namespaceName string) bool {
+	_, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
 func DeleteNamespace(namespaceName string) error {
 	err := clientset.CoreV1().Namespaces().Delete(context.TODO(), namespaceName, metav1.DeleteOptions{})
 	if err != nil {

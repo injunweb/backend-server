@@ -156,8 +156,10 @@ func (s *ApplicationService) DeleteApplication(userId uint, appId uint) (DeleteA
 	}
 
 	if application.Status == models.ApplicationStatusApproved {
-		if err := kubernetes.DeleteNamespace(application.Name); err != nil {
-			return DeleteApplicationResponse{}, fmt.Errorf("failed to delete namespace: %v", err)
+		if kubernetes.NamespaceExists(application.Name) {
+			if err := kubernetes.DeleteNamespace(application.Name); err != nil {
+				return DeleteApplicationResponse{}, fmt.Errorf("failed to delete namespace: %v", err)
+			}
 		}
 
 		if err := vault.DeleteSecret(application.Name); err != nil {
