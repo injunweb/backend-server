@@ -75,3 +75,27 @@ func generateRandomPassword() string {
 
 	return string(password)
 }
+
+func DeleteDatabaseAndUser(appName string) error {
+	rootDsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/?charset=utf8mb4&parseTime=True&loc=Local",
+		"root", config.AppConfig.DBRootPassword, config.AppConfig.DBHost, config.AppConfig.DBPort)
+
+	rootDb, err := gorm.Open(mysql.Open(rootDsn), &gorm.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to connect to root database: %v", err)
+	}
+
+	queries := []string{
+		fmt.Sprintf("DROP DATABASE IF EXISTS `%s`;", appName),
+		fmt.Sprintf("DROP USER IF EXISTS '%s'@'%%';", appName),
+		"FLUSH PRIVILEGES;",
+	}
+
+	for _, query := range queries {
+		if err := rootDb.Exec(query).Error; err != nil {
+			return fmt.Errorf("failed to execute query: %v", err)
+		}
+	}
+
+	return nil
+}

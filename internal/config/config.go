@@ -8,6 +8,8 @@ type Config struct {
 	VaultAddr       string
 	VaultToken      string
 	VaultKV         string
+	InCluster       string
+	KubeConfig      string
 	SMTPHost        string
 	SMTPPort        string
 	SMTPSenderEmail string
@@ -32,6 +34,8 @@ func Load() {
 		VaultAddr:       os.Getenv("VAULT_ADDR"),
 		VaultToken:      os.Getenv("VAULT_TOKEN"),
 		VaultKV:         os.Getenv("VAULT_KV"),
+		InCluster:       os.Getenv("IN_CLUSTER"),
+		KubeConfig:      os.Getenv("KUBE_CONFIG"),
 		SMTPHost:        os.Getenv("SMTP_HOST"),
 		SMTPPort:        os.Getenv("SMTP_PORT"),
 		SMTPSenderEmail: os.Getenv("SMTP_SENDER_EMAIL"),

@@ -55,3 +55,12 @@ func InitSecret(path string, data map[string]interface{}) error {
 
 	return nil
 }
+
+func DeleteSecret(path string) error {
+	err := client.KVv1(config.AppConfig.VaultKV).Delete(ctx, path)
+	if err != nil {
+		return fmt.Errorf("failed to delete secret: %v", err)
+	}
+
+	return nil
+}

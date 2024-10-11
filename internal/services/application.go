@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	"github.com/injunweb/backend-server/internal/models"
+	"github.com/injunweb/backend-server/pkg/database"
+	"github.com/injunweb/backend-server/pkg/github"
+	"github.com/injunweb/backend-server/pkg/kubernetes"
 	"github.com/injunweb/backend-server/pkg/vault"
 
 	"gorm.io/gorm"
@@ -135,6 +138,48 @@ func (s *ApplicationService) GetApplication(userId uint, appId uint) (GetApplica
 		Description: application.Description,
 		OwnerID:     application.OwnerID,
 		Status:      application.Status,
+	}, nil
+}
+
+type DeleteApplicationResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *ApplicationService) DeleteApplication(userId uint, appId uint) (DeleteApplicationResponse, error) {
+	var application models.Application
+	if err := s.db.First(&application, appId).Error; err != nil {
+		return DeleteApplicationResponse{}, errors.New("application not found")
+	}
+
+	if application.OwnerID != userId {
+		return DeleteApplicationResponse{}, errors.New("permission denied")
+	}
+
+	if application.Status == models.ApplicationStatusApproved {
+		if err := kubernetes.DeleteNamespace(application.Name); err != nil {
+			return DeleteApplicationResponse{}, fmt.Errorf("failed to delete namespace: %v", err)
+		}
+
+		if err := vault.DeleteSecret(application.Name); err != nil {
+			return DeleteApplicationResponse{}, fmt.Errorf("failed to delete secret: %v", err)
+		}
+
+		if err := database.DeleteDatabaseAndUser(application.Name); err != nil {
+			return DeleteApplicationResponse{}, fmt.Errorf("failed to delete database and user: %v", err)
+		}
+
+		if err := github.TriggerRemovePipelineWorkflow(application); err != nil {
+			return DeleteApplicationResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+		}
+
+	}
+
+	if err := s.db.Delete(&application).Error; err != nil {
+		return DeleteApplicationResponse{}, errors.New("failed to delete application")
+	}
+
+	return DeleteApplicationResponse{
+		Message: "Application deleted successfully",
 	}, nil
 }
 

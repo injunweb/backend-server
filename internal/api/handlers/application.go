@@ -60,6 +60,19 @@ func (h *ApplicationHandler) GetApplication(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func (h *ApplicationHandler) DeleteApplication(c *gin.Context) {
+	userId, _ := c.Get("user_id")
+	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)
+
+	response, err := h.applicationService.DeleteApplication(userId.(uint), uint(appId))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func (h *ApplicationHandler) GetEnvironments(c *gin.Context) {
 	userId, _ := c.Get("user_id")
 	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)

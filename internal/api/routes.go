@@ -39,6 +39,7 @@ func SetupRoutes(router *gin.Engine) {
 		applications.POST("", appHandler.SubmitApplication)
 		applications.GET("", appHandler.GetApplications)
 		applications.GET("/:appId", appHandler.GetApplication)
+		applications.DELETE("/:appId", appHandler.DeleteApplication)
 
 		environments := applications.Group("/:appId/environments")
 		{

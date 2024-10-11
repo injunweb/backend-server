@@ -6,6 +6,7 @@ import (
 	"github.com/injunweb/backend-server/internal/api"
 	"github.com/injunweb/backend-server/internal/config"
 	"github.com/injunweb/backend-server/pkg/database"
+	"github.com/injunweb/backend-server/pkg/kubernetes"
 	"github.com/injunweb/backend-server/pkg/vault"
 
 	"github.com/gin-contrib/cors"
@@ -15,7 +16,12 @@ import (
 func main() {
 	config.Load()
 
-	err := database.Init()
+	err := kubernetes.Init()
+	if err != nil {
+		log.Fatalf("Failed to initialize Kubernetes: %v", err)
+	}
+
+	err = database.Init()
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}

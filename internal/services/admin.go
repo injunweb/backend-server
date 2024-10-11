@@ -120,7 +120,7 @@ func (s *AdminService) ApproveApplicationByAdmin(appId uint) (ApproveApplication
 		return ApproveApplicationByAdminResponse{}, fmt.Errorf("failed to initialize Vault secret: %v", err)
 	}
 
-	if err := github.TriggerWorkflow(application); err != nil {
+	if err := github.TriggerWriteValuesWorkflow(application); err != nil {
 		return ApproveApplicationByAdminResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
 	}
 
