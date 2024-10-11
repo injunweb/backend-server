@@ -171,7 +171,6 @@ func (s *ApplicationService) DeleteApplication(userId uint, appId uint) (DeleteA
 		if err := github.TriggerRemovePipelineWorkflow(application); err != nil {
 			return DeleteApplicationResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
 		}
-
 	}
 
 	if err := s.db.Delete(&application).Error; err != nil {
