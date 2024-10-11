@@ -9,7 +9,7 @@ import (
 )
 
 func RepositoryExists(repoName string) (bool, error) {
-	url := fmt.Sprintf("%s/projects/%s/repositories/%s", config.AppConfig.HarborURL, config.AppConfig.HarborProjectName, repoName)
+	url := fmt.Sprintf("%s/api/v2.0/projects/%s/repositories/%s", config.AppConfig.HarborURL, config.AppConfig.HarborProjectName, repoName)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -37,7 +37,7 @@ func RepositoryExists(repoName string) (bool, error) {
 }
 
 func DeleteRepository(repoName string) error {
-	url := fmt.Sprintf("%s/projects/%s/repositories/%s", config.AppConfig.HarborURL, config.AppConfig.HarborProjectName, repoName)
+	url := fmt.Sprintf("%s/api/v2.0/projects/%s/repositories/%s", config.AppConfig.HarborURL, config.AppConfig.HarborProjectName, repoName)
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
