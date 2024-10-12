@@ -63,6 +63,18 @@ func (h *AdminHandler) ApproveApplicationByAdmin(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func (h *AdminHandler) CancleApproveApplicationByAdmin(c *gin.Context) {
+	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)
+
+	response, err := h.adminService.CancleApproveApplicationByAdmin(uint(appId))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func (h *AdminHandler) GetApplicationByAdmin(c *gin.Context) {
 	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)
 

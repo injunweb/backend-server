@@ -8,6 +8,8 @@ import (
 	"github.com/injunweb/backend-server/pkg/database"
 	"github.com/injunweb/backend-server/pkg/email"
 	"github.com/injunweb/backend-server/pkg/github"
+	"github.com/injunweb/backend-server/pkg/harbor"
+	"github.com/injunweb/backend-server/pkg/kubernetes"
 	"github.com/injunweb/backend-server/pkg/vault"
 
 	"gorm.io/gorm"
@@ -145,6 +147,56 @@ func (s *AdminService) ApproveApplicationByAdmin(appId uint) (ApproveApplication
 
 	return ApproveApplicationByAdminResponse{
 		Message: "Application approved successfully",
+	}, nil
+}
+
+type CancleApproveApplicationByAdminResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *AdminService) CancleApproveApplicationByAdmin(appId uint) (CancleApproveApplicationByAdminResponse, error) {
+	var application models.Application
+	if err := s.db.First(&application, appId).Error; err != nil {
+		return CancleApproveApplicationByAdminResponse{}, errors.New("application not found")
+	}
+
+	if application.Status != models.ApplicationStatusApproved {
+		return CancleApproveApplicationByAdminResponse{}, errors.New("application not approved")
+	}
+
+	if kubernetes.NamespaceExists(application.Name) {
+		if err := kubernetes.DeleteNamespace(application.Name); err != nil {
+			return CancleApproveApplicationByAdminResponse{}, fmt.Errorf("failed to delete namespace: %v", err)
+		}
+	}
+
+	if exists, err := harbor.RepositoryExists(application.Name); err != nil {
+		return CancleApproveApplicationByAdminResponse{}, fmt.Errorf("failed to check Harbor repository: %v", err)
+	} else if exists {
+		if err := harbor.DeleteRepository(application.Name); err != nil {
+			return CancleApproveApplicationByAdminResponse{}, fmt.Errorf("failed to delete Harbor repository: %v", err)
+		}
+	}
+
+	if err := vault.DeleteSecret(application.Name); err != nil {
+		return CancleApproveApplicationByAdminResponse{}, fmt.Errorf("failed to delete secret: %v", err)
+	}
+
+	if err := database.DeleteDatabaseAndUser(application.Name); err != nil {
+		return CancleApproveApplicationByAdminResponse{}, fmt.Errorf("failed to delete database and user: %v", err)
+	}
+
+	if err := github.TriggerRemovePipelineWorkflow(application); err != nil {
+		return CancleApproveApplicationByAdminResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+	}
+
+	application.Status = models.ApplicationStatusPending
+	if err := s.db.Save(&application).Error; err != nil {
+		return CancleApproveApplicationByAdminResponse{}, errors.New("failed to update application status")
+	}
+
+	return CancleApproveApplicationByAdminResponse{
+		Message: "Application approval canceled successfully",
 	}, nil
 }
 
