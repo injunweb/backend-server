@@ -118,7 +118,7 @@ func (s *AdminService) ApproveApplicationByAdmin(appId uint) (ApproveApplication
 		return ApproveApplicationByAdminResponse{}, errors.New("application already approved")
 	}
 
-	if err := vault.InitSecret(application.Name, map[string]interface{}{"PORT": application.Port}); err != nil {
+	if err := vault.InitSecret(application.Name, map[string]interface{}{"PORT": fmt.Sprintf("%d", application.Port)}); err != nil {
 		return ApproveApplicationByAdminResponse{}, fmt.Errorf("failed to initialize Vault secret: %v", err)
 	}
 
