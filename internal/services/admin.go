@@ -248,6 +248,7 @@ func (s *AdminService) GetApplicationByAdmin(appId uint) (GetApplicationByAdminR
 
 	return GetApplicationByAdminResponse{
 		ID:              application.ID,
+		Name:            application.Name,
 		GitURL:          application.GitURL,
 		Branch:          application.Branch,
 		Port:            application.Port,
