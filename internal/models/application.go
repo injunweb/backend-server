@@ -11,7 +11,7 @@ const (
 
 type Application struct {
 	gorm.Model
-	Name            string           `gorm:"uniqueIndex;not null" json:"name"`
+	Name            string           `gorm:"type:varchar(255);uniqueIndex;not null" json:"name"`
 	GitURL          string           `gorm:"not null" json:"git_url"`
 	Branch          string           `gorm:"not null" json:"branch"`
 	Port            int              `gorm:"not null" json:"port"`
@@ -19,6 +19,6 @@ type Application struct {
 	Status          string           `gorm:"default:'Pending'" json:"status"`
 	OwnerID         uint             `gorm:"not null" json:"owner_id"`
 	Owner           User             `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`
-	PrimaryHostname string           `gorm:"uniqueIndex;not null" json:"primary_hostname"`
+	PrimaryHostname string           `gorm:"type:varchar(255);uniqueIndex;not null" json:"primary_hostname"`
 	ExtraHostnames  []ExtraHostnames `gorm:"foreignKey:ApplicationID" json:"extra_hostnames,omitempty"`
 }
