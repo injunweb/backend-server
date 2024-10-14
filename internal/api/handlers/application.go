@@ -73,6 +73,44 @@ func (h *ApplicationHandler) DeleteApplication(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func (h *ApplicationHandler) AddExtralHostname(c *gin.Context) {
+	userId, _ := c.Get("user_id")
+	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)
+
+	var request services.AddAdditionalHostnameRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	response, err := h.applicationService.AddExtralHostname(userId.(uint), uint(appId), request)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, response)
+}
+
+func (h *ApplicationHandler) DeleteExtraHostname(c *gin.Context) {
+	userId, _ := c.Get("user_id")
+	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)
+
+	var request services.DeleteAdditionalHostnameRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	response, err := h.applicationService.DeleteExtraHostname(userId.(uint), uint(appId), request)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func (h *ApplicationHandler) GetEnvironments(c *gin.Context) {
 	userId, _ := c.Get("user_id")
 	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)

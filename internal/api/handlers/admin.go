@@ -75,6 +75,24 @@ func (h *AdminHandler) CancleApproveApplicationByAdmin(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func (h *AdminHandler) UpdatePrimaryHostnameByAdmin(c *gin.Context) {
+	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)
+
+	var req services.UpdateCustomHostnameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response, err := h.adminService.UpdatePrimaryHostnameByAdmin(uint(appId), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func (h *AdminHandler) GetApplicationByAdmin(c *gin.Context) {
 	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)
 

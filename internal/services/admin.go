@@ -200,15 +200,44 @@ func (s *AdminService) CancleApproveApplicationByAdmin(appId uint) (CancleApprov
 	}, nil
 }
 
+type UpdateCustomHostnameRequest struct {
+	Hostname string `json:"hostname" binding:"required"`
+}
+
+type UpdateCustomHostnameByAdminResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *AdminService) UpdatePrimaryHostnameByAdmin(appId uint, request UpdateCustomHostnameRequest) (UpdateCustomHostnameByAdminResponse, error) {
+	var application models.Application
+	if err := s.db.First(&application, appId).Error; err != nil {
+		return UpdateCustomHostnameByAdminResponse{}, errors.New("application not found")
+	}
+
+	if application.Status != models.ApplicationStatusApproved {
+		return UpdateCustomHostnameByAdminResponse{}, errors.New("application not approved")
+	}
+
+	if err := github.TriggerUpdateCustomHostname(application, request.Hostname); err != nil {
+		return UpdateCustomHostnameByAdminResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+	}
+
+	return UpdateCustomHostnameByAdminResponse{
+		Message: "Custom hostname updated successfully",
+	}, nil
+}
+
 type GetApplicationByAdminResponse struct {
-	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	GitURL      string `json:"git_url"`
-	Branch      string `json:"branch"`
-	Port        int    `json:"port"`
-	Description string `json:"description"`
-	OwnerID     uint   `json:"owner_id"`
-	Status      string `json:"status"`
+	ID              uint     `json:"id"`
+	Name            string   `json:"name"`
+	GitURL          string   `json:"git_url"`
+	Branch          string   `json:"branch"`
+	Port            int      `json:"port"`
+	Description     string   `json:"description"`
+	OwnerID         uint     `json:"owner_id"`
+	Status          string   `json:"status"`
+	PrimaryHostname string   `json:"primary_hostname"`
+	ExtraHostnames  []string `json:"extra_hostnames"`
 }
 
 func (s *AdminService) GetApplicationByAdmin(appId uint) (GetApplicationByAdminResponse, error) {
@@ -218,13 +247,20 @@ func (s *AdminService) GetApplicationByAdmin(appId uint) (GetApplicationByAdminR
 	}
 
 	return GetApplicationByAdminResponse{
-		ID:          application.ID,
-		Name:        application.Name,
-		GitURL:      application.GitURL,
-		Branch:      application.Branch,
-		Port:        application.Port,
-		Description: application.Description,
-		OwnerID:     application.OwnerID,
-		Status:      application.Status,
+		ID:              application.ID,
+		GitURL:          application.GitURL,
+		Branch:          application.Branch,
+		Port:            application.Port,
+		Description:     application.Description,
+		OwnerID:         application.OwnerID,
+		Status:          application.Status,
+		PrimaryHostname: application.PrimaryHostname,
+		ExtraHostnames: func() []string {
+			var extraHostnames []string
+			for _, hostname := range application.ExtraHostnames {
+				extraHostnames = append(extraHostnames, hostname.Hostname)
+			}
+			return extraHostnames
+		}(),
 	}, nil
 }

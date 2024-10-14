@@ -40,6 +40,8 @@ func SetupRoutes(router *gin.Engine) {
 		applications.GET("", appHandler.GetApplications)
 		applications.GET("/:appId", appHandler.GetApplication)
 		applications.DELETE("/:appId", appHandler.DeleteApplication)
+		applications.POST("/:appId/extra-hostnames", appHandler.AddExtralHostname)
+		applications.DELETE("/:appId/extra-hostnames", appHandler.DeleteExtraHostname)
 
 		environments := applications.Group("/:appId/environments")
 		{
@@ -66,6 +68,7 @@ func SetupRoutes(router *gin.Engine) {
 		{
 			adminApplications.POST("/:appId/approve", adminHandler.ApproveApplicationByAdmin)
 			adminApplications.POST("/:appId/cancle-approve", adminHandler.CancleApproveApplicationByAdmin)
+			adminApplications.POST("/:appId/primary-hostname", adminHandler.UpdatePrimaryHostnameByAdmin)
 			adminApplications.GET("/:appId", adminHandler.GetApplicationByAdmin)
 		}
 	}

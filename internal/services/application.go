@@ -91,13 +91,15 @@ func (s *ApplicationService) SubmitApplication(userId uint, req SubmitApplicatio
 	}
 
 	application := models.Application{
-		Name:        req.Name,
-		GitURL:      req.GitURL,
-		Branch:      req.Branch,
-		Port:        req.Port,
-		Description: req.Description,
-		Status:      models.ApplicationStatusPending,
-		OwnerID:     userId,
+		Name:            req.Name,
+		GitURL:          req.GitURL,
+		Branch:          req.Branch,
+		Port:            req.Port,
+		Description:     req.Description,
+		Status:          models.ApplicationStatusPending,
+		PrimaryHostname: fmt.Sprintf("%s.%s", req.Name, "ijw.app"),
+		ExtraHostnames:  []models.ExtraHostnames{},
+		OwnerID:         userId,
 	}
 
 	if err := s.db.Create(&application).Error; err != nil {
@@ -110,14 +112,16 @@ func (s *ApplicationService) SubmitApplication(userId uint, req SubmitApplicatio
 }
 
 type GetApplicationResponse struct {
-	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	GitURL      string `json:"git_url"`
-	Branch      string `json:"branch"`
-	Port        int    `json:"port"`
-	Description string `json:"description"`
-	OwnerID     uint   `json:"owner_id"`
-	Status      string `json:"status"`
+	ID              uint     `json:"id"`
+	Name            string   `json:"name"`
+	GitURL          string   `json:"git_url"`
+	Branch          string   `json:"branch"`
+	Port            int      `json:"port"`
+	Description     string   `json:"description"`
+	OwnerID         uint     `json:"owner_id"`
+	Status          string   `json:"status"`
+	PrimaryHostname string   `json:"primary_hostname"`
+	ExtraHostnames  []string `json:"extra_hostnames"`
 }
 
 func (s *ApplicationService) GetApplication(userId uint, appId uint) (GetApplicationResponse, error) {
@@ -131,14 +135,22 @@ func (s *ApplicationService) GetApplication(userId uint, appId uint) (GetApplica
 	}
 
 	return GetApplicationResponse{
-		ID:          application.ID,
-		Name:        application.Name,
-		GitURL:      application.GitURL,
-		Branch:      application.Branch,
-		Port:        application.Port,
-		Description: application.Description,
-		OwnerID:     application.OwnerID,
-		Status:      application.Status,
+		ID:              application.ID,
+		Name:            application.Name,
+		GitURL:          application.GitURL,
+		Branch:          application.Branch,
+		Port:            application.Port,
+		Description:     application.Description,
+		OwnerID:         application.OwnerID,
+		Status:          application.Status,
+		PrimaryHostname: application.PrimaryHostname,
+		ExtraHostnames: func() []string {
+			var extraHostnames []string
+			for _, hostname := range application.ExtraHostnames {
+				extraHostnames = append(extraHostnames, hostname.Hostname)
+			}
+			return extraHostnames
+		}(),
 	}, nil
 }
 
@@ -190,6 +202,100 @@ func (s *ApplicationService) DeleteApplication(userId uint, appId uint) (DeleteA
 
 	return DeleteApplicationResponse{
 		Message: "Application deleted successfully",
+	}, nil
+}
+
+type AddAdditionalHostnameRequest struct {
+	Hostname string `json:"hostname" binding:"required"`
+}
+
+type AddAdditionalHostnameResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddAdditionalHostnameRequest) (AddAdditionalHostnameResponse, error) {
+	var application models.Application
+	if err := s.db.First(&application, appId).Error; err != nil {
+		return AddAdditionalHostnameResponse{}, errors.New("application not found")
+	}
+
+	if application.OwnerID != userId {
+		return AddAdditionalHostnameResponse{}, errors.New("permission denied")
+	}
+
+	if application.Status != models.ApplicationStatusApproved {
+		return AddAdditionalHostnameResponse{}, errors.New("application not approved")
+	}
+
+	if application.PrimaryHostname == req.Hostname {
+		return AddAdditionalHostnameResponse{}, errors.New("hostname already exists")
+	}
+
+	for _, hostname := range application.ExtraHostnames {
+		if hostname.Hostname == req.Hostname {
+			return AddAdditionalHostnameResponse{}, errors.New("hostname already exists")
+		}
+	}
+
+	hostname := models.ExtraHostnames{
+		ApplicationID: application.ID,
+		Hostname:      req.Hostname,
+	}
+
+	if err := s.db.Create(&hostname).Error; err != nil {
+		return AddAdditionalHostnameResponse{}, errors.New("failed to add additional hostname")
+	}
+
+	if err := github.TriggerAddAdditionalHostnameWorkflow(application, req.Hostname); err != nil {
+		return AddAdditionalHostnameResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+	}
+
+	return AddAdditionalHostnameResponse{
+		Message: "Additional hostname added successfully",
+	}, nil
+}
+
+type DeleteAdditionalHostnameRequest struct {
+	Hostname string `json:"hostname" binding:"required"`
+}
+
+type DeleteAdditionalHostnameResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *ApplicationService) DeleteExtraHostname(userId uint, appId uint, req DeleteAdditionalHostnameRequest) (DeleteAdditionalHostnameResponse, error) {
+	var application models.Application
+	if err := s.db.First(&application, appId).Error; err != nil {
+		return DeleteAdditionalHostnameResponse{}, errors.New("application not found")
+	}
+
+	if application.OwnerID != userId {
+		return DeleteAdditionalHostnameResponse{}, errors.New("permission denied")
+	}
+
+	if application.Status != models.ApplicationStatusApproved {
+		return DeleteAdditionalHostnameResponse{}, errors.New("application not approved")
+	}
+
+	if application.PrimaryHostname == req.Hostname {
+		return DeleteAdditionalHostnameResponse{}, errors.New("cannot delete custom hostname")
+	}
+
+	var hostname models.ExtraHostnames
+	if err := s.db.Where("application_id = ? AND hostname = ?", application.ID, req.Hostname).First(&hostname).Error; err != nil {
+		return DeleteAdditionalHostnameResponse{}, errors.New("hostname not found")
+	}
+
+	if err := s.db.Delete(&hostname).Error; err != nil {
+		return DeleteAdditionalHostnameResponse{}, errors.New("failed to delete additional hostname")
+	}
+
+	if err := github.TriggerDeleteAdditionalHostnameWorkflow(application, req.Hostname); err != nil {
+		return DeleteAdditionalHostnameResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+	}
+
+	return DeleteAdditionalHostnameResponse{
+		Message: "Additional hostname deleted successfully",
 	}, nil
 }
 
