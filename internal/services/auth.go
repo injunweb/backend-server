@@ -84,6 +84,10 @@ func (s *AuthService) Register(req RegisterRequest) (RegisterResponse, error) {
 		return RegisterResponse{}, errors.New("failed to register user")
 	}
 
+	notificationService := NewNotificationService(s.db)
+	notificationMessage := "New user registered: " + req.Username
+	notificationService.CreateAdminNotification(notificationMessage)
+
 	return RegisterResponse{
 		Message: "User registered successfully",
 	}, nil

@@ -175,6 +175,12 @@ func (s *AdminService) ApproveApplicationByAdmin(appId uint) (ApproveApplication
 		return ApproveApplicationByAdminResponse{}, errors.New("failed to update application status")
 	}
 
+	notificationService := NewNotificationService(s.db)
+	notificationMessage := fmt.Sprintf("Your application %s has been approved", application.Name)
+	if err := notificationService.CreateNotification(application.OwnerID, notificationMessage); err != nil {
+		return ApproveApplicationByAdminResponse{}, fmt.Errorf("failed to create notification: %v", err)
+	}
+
 	return ApproveApplicationByAdminResponse{
 		Message: "Application approved successfully",
 	}, nil
@@ -223,6 +229,12 @@ func (s *AdminService) CancleApproveApplicationByAdmin(appId uint) (CancleApprov
 	application.Status = models.ApplicationStatusPending
 	if err := s.db.Save(&application).Error; err != nil {
 		return CancleApproveApplicationByAdminResponse{}, errors.New("failed to update application status")
+	}
+
+	notificationService := NewNotificationService(s.db)
+	notificationMessage := fmt.Sprintf("Your application %s approval has been canceled", application.Name)
+	if err := notificationService.CreateNotification(application.OwnerID, notificationMessage); err != nil {
+		return CancleApproveApplicationByAdminResponse{}, fmt.Errorf("failed to create notification: %v", err)
 	}
 
 	return CancleApproveApplicationByAdminResponse{

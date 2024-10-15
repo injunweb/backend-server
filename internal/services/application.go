@@ -106,6 +106,10 @@ func (s *ApplicationService) SubmitApplication(userId uint, req SubmitApplicatio
 		return SubmitApplicationResponse{}, errors.New("failed to submit application")
 	}
 
+	notificationService := NewNotificationService(s.db)
+	notificationMessage := fmt.Sprintf("New application submitted: %s", req.Name)
+	notificationService.CreateAdminNotification(notificationMessage)
+
 	return SubmitApplicationResponse{
 		Message: "Application submitted successfully",
 	}, nil
@@ -199,6 +203,10 @@ func (s *ApplicationService) DeleteApplication(userId uint, appId uint) (DeleteA
 	if err := s.db.Delete(&application).Error; err != nil {
 		return DeleteApplicationResponse{}, errors.New("failed to delete application")
 	}
+
+	notificationService := NewNotificationService(s.db)
+	notificationMessage := fmt.Sprintf("Application %s has been deleted", application.Name)
+	notificationService.CreateAdminNotification(notificationMessage)
 
 	return DeleteApplicationResponse{
 		Message: "Application deleted successfully",
