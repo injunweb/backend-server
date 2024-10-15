@@ -104,6 +104,36 @@ func (s *AdminService) GetApplicationsByAdmin(userId uint) (GetApplicationsByAdm
 	return response, nil
 }
 
+type GetAllApplicationsByAdminResponse struct {
+	Applications []struct {
+		ID     uint   `json:"id"`
+		Name   string `json:"name"`
+		Status string `json:"status"`
+	} `json:"applications"`
+}
+
+func (s *AdminService) GetAllApplicationsByAdmin() (GetAllApplicationsByAdminResponse, error) {
+	var applications []models.Application
+	if err := s.db.Find(&applications).Error; err != nil {
+		return GetAllApplicationsByAdminResponse{}, errors.New("failed to retrieve applications")
+	}
+
+	var response GetAllApplicationsByAdminResponse
+	for _, app := range applications {
+		response.Applications = append(response.Applications, struct {
+			ID     uint   `json:"id"`
+			Name   string `json:"name"`
+			Status string `json:"status"`
+		}{
+			ID:     app.ID,
+			Name:   app.Name,
+			Status: app.Status,
+		})
+	}
+
+	return response, nil
+}
+
 type ApproveApplicationByAdminResponse struct {
 	Message string `json:"message"`
 }

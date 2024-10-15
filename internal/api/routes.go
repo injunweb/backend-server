@@ -66,6 +66,7 @@ func SetupRoutes(router *gin.Engine) {
 
 		adminApplications := admin.Group("/applications")
 		{
+			adminApplications.GET("", adminHandler.GetAllApplicationsByAdmin)
 			adminApplications.POST("/:appId/approve", adminHandler.ApproveApplicationByAdmin)
 			adminApplications.POST("/:appId/cancle-approve", adminHandler.CancleApproveApplicationByAdmin)
 			adminApplications.POST("/:appId/primary-hostname", adminHandler.UpdatePrimaryHostnameByAdmin)
