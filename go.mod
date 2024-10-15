@@ -3,6 +3,7 @@ module github.com/injunweb/backend-server
 go 1.23.1
 
 require (
+	github.com/SherClockHolmes/webpush-go v1.3.0
 	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible

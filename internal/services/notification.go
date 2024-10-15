@@ -4,17 +4,18 @@ import (
 	"errors"
 
 	"github.com/injunweb/backend-server/internal/models"
-	"github.com/injunweb/backend-server/pkg/websocket"
+	"github.com/injunweb/backend-server/pkg/webpush"
 
 	"gorm.io/gorm"
 )
 
 type NotificationService struct {
-	db *gorm.DB
+	db          *gorm.DB
+	userService *UserService
 }
 
-func NewNotificationService(db *gorm.DB) *NotificationService {
-	return &NotificationService{db: db}
+func NewNotificationService(db *gorm.DB, userService *UserService) *NotificationService {
+	return &NotificationService{db: db, userService: userService}
 }
 
 func (s *NotificationService) CreateNotification(userID uint, message string) error {
@@ -22,11 +23,30 @@ func (s *NotificationService) CreateNotification(userID uint, message string) er
 		UserID:  userID,
 		Message: message,
 	}
-	err := s.db.Create(&notification).Error
-	if err != nil {
+	if err := s.db.Create(&notification).Error; err != nil {
 		return errors.New("failed to create notification")
 	}
-	websocket.SendNotification(userID, message)
+
+	subscriptions, err := s.userService.GetUserSubscriptions(userID)
+	if err != nil {
+		return err
+	}
+
+	for _, sub := range subscriptions {
+		subscription := webpush.Subscription{
+			Endpoint: sub.Endpoint,
+			Keys: struct {
+				P256dh string `json:"p256dh"`
+				Auth   string `json:"auth"`
+			}{
+				P256dh: sub.P256dh,
+				Auth:   sub.Auth,
+			},
+		}
+		if err := webpush.SendNotification(subscription, message); err != nil {
+		}
+	}
+
 	return nil
 }
 
@@ -38,28 +58,14 @@ func (s *NotificationService) CreateAdminNotification(message string) error {
 	}
 
 	for _, user := range users {
-		notification := models.Notification{
-			UserID:  user.ID,
-			Message: message,
+		if err := s.CreateNotification(user.ID, message); err != nil {
+			return err
 		}
-		err := s.db.Create(&notification).Error
-		if err != nil {
-			return errors.New("failed to create notification")
-		}
-		websocket.SendNotification(user.ID, message)
 	}
 	return nil
 }
 
-type GetUserNotificationsResponse struct {
-	Notifications []struct {
-		ID      uint   `json:"id"`
-		Message string `json:"message"`
-		IsRead  bool   `json:"is_read"`
-	} `json:"notifications"`
-}
-
-func (s *NotificationService) GetUserNotifications(userId uint) (GetUserNotificationsResponse, error) {
+func (s *NotificationService) GetUserNotifications(userId uint) ([]models.Notification, error) {
 	var notifications []models.Notification
 	err := s.db.
 		Where("user_id = ?", userId).
@@ -67,42 +73,24 @@ func (s *NotificationService) GetUserNotifications(userId uint) (GetUserNotifica
 		Find(&notifications).Error
 
 	if err != nil {
-		return GetUserNotificationsResponse{}, errors.New("failed to retrieve notifications")
+		return nil, errors.New("failed to retrieve notifications")
 	}
 
-	var response GetUserNotificationsResponse
-	for _, notification := range notifications {
-		response.Notifications = append(response.Notifications, struct {
-			ID      uint   `json:"id"`
-			Message string `json:"message"`
-			IsRead  bool   `json:"is_read"`
-		}{
-			ID:      notification.ID,
-			Message: notification.Message,
-			IsRead:  notification.IsRead,
-		})
-	}
-	return response, nil
+	return notifications, nil
 }
 
-type MarkAsReadResponse struct {
-	Message string `json:"message"`
-}
-
-func (s *NotificationService) MarkAsRead(userId uint, notificationId uint) (MarkAsReadResponse, error) {
+func (s *NotificationService) MarkAsRead(userId uint, notificationId uint) error {
 	result := s.db.
 		Model(&models.Notification{}).
 		Where("id = ? AND user_id = ?", notificationId, userId).
 		Updates(map[string]interface{}{"is_read": true})
 
 	if result.Error != nil {
-		return MarkAsReadResponse{}, result.Error
+		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return MarkAsReadResponse{}, errors.New("notification not found or already read")
+		return errors.New("notification not found or already read")
 	}
 
-	return MarkAsReadResponse{
-		Message: "Notification marked as read successfully",
-	}, nil
+	return nil
 }

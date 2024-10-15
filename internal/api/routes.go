@@ -10,16 +10,16 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine) {
-	authService := services.NewAuthService(database.DB)
 	userService := services.NewUserService(database.DB)
-	appService := services.NewApplicationService(database.DB)
-	notificationService := services.NewNotificationService(database.DB)
-	adminService := services.NewAdminService(database.DB)
+	notificationService := services.NewNotificationService(database.DB, userService)
+	authService := services.NewAuthService(database.DB, notificationService)
+	appService := services.NewApplicationService(database.DB, notificationService)
+	adminService := services.NewAdminService(database.DB, notificationService)
 
 	authHandler := handlers.NewAuthHandler(authService)
 	userHandler := handlers.NewUserHandler(userService)
 	appHandler := handlers.NewApplicationHandler(appService)
-	notificationHandler := handlers.NewNotificationHandler(notificationService)
+	notificationHandler := handlers.NewNotificationHandler(notificationService, userService)
 	adminHandler := handlers.NewAdminHandler(adminService)
 
 	auth := router.Group("/auth")
@@ -57,9 +57,9 @@ func SetupRoutes(router *gin.Engine) {
 	{
 		notifications.GET("", notificationHandler.GetNotifications)
 		notifications.POST("/:notificationId/read", notificationHandler.MarkAsRead)
+		notifications.POST("/subscribe", notificationHandler.Subscribe)
+		notifications.GET("/vapid-public-key", notificationHandler.GetVAPIDPublicKey)
 	}
-
-	router.GET("/notification_ws", middleware.AuthMiddleware(), handlers.HandleNotificationWs)
 
 	admin := router.Group("/admin")
 	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())

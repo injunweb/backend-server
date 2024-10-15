@@ -17,11 +17,12 @@ import (
 )
 
 type ApplicationService struct {
-	db *gorm.DB
+	db                  *gorm.DB
+	notificationService *NotificationService
 }
 
-func NewApplicationService(db *gorm.DB) *ApplicationService {
-	return &ApplicationService{db: db}
+func NewApplicationService(db *gorm.DB, notificationService *NotificationService) *ApplicationService {
+	return &ApplicationService{db: db, notificationService: notificationService}
 }
 
 type GetApplicationsResponse struct {
@@ -106,9 +107,7 @@ func (s *ApplicationService) SubmitApplication(userId uint, req SubmitApplicatio
 		return SubmitApplicationResponse{}, errors.New("failed to submit application")
 	}
 
-	notificationService := NewNotificationService(s.db)
-	notificationMessage := fmt.Sprintf("New application submitted: %s", req.Name)
-	notificationService.CreateAdminNotification(notificationMessage)
+	s.notificationService.CreateAdminNotification(fmt.Sprintf("New application submitted: %s", req.Name))
 
 	return SubmitApplicationResponse{
 		Message: "Application submitted successfully",
@@ -204,9 +203,7 @@ func (s *ApplicationService) DeleteApplication(userId uint, appId uint) (DeleteA
 		return DeleteApplicationResponse{}, errors.New("failed to delete application")
 	}
 
-	notificationService := NewNotificationService(s.db)
-	notificationMessage := fmt.Sprintf("Application %s has been deleted", application.Name)
-	notificationService.CreateAdminNotification(notificationMessage)
+	s.notificationService.CreateAdminNotification(fmt.Sprintf("Application deleted: %s", application.Name))
 
 	return DeleteApplicationResponse{
 		Message: "Application deleted successfully",

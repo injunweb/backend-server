@@ -67,3 +67,26 @@ func (s *UserService) UpdateUser(userId uint, req UpdateUserRequest) (UpdateUser
 		Message: "User updated successfully",
 	}, nil
 }
+
+func (s *UserService) AddSubscription(userID uint, endpoint, p256dh, auth string) error {
+	subscription := models.Subscription{
+		UserID:   userID,
+		Endpoint: endpoint,
+		P256dh:   p256dh,
+		Auth:     auth,
+	}
+
+	result := s.db.Create(&subscription)
+	if result.Error != nil {
+		return errors.New("failed to add subscription")
+	}
+	return nil
+}
+
+func (s *UserService) GetUserSubscriptions(userID uint) ([]models.Subscription, error) {
+	var subscriptions []models.Subscription
+	if err := s.db.Where("user_id = ?", userID).Find(&subscriptions).Error; err != nil {
+		return nil, errors.New("failed to retrieve subscriptions")
+	}
+	return subscriptions, nil
+}

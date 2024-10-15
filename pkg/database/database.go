@@ -29,7 +29,7 @@ func Init() error {
 		return fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	err = DB.AutoMigrate(&models.User{}, &models.Application{}, &models.ExtraHostnames{}, &models.Notification{})
+	err = DB.AutoMigrate(&models.User{}, &models.Application{}, &models.ExtraHostnames{}, &models.Notification{}, &models.Subscription{})
 	if err != nil {
 		return fmt.Errorf("failed to migrate database: %v", err)
 	}

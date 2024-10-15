@@ -13,11 +13,12 @@ import (
 )
 
 type AuthService struct {
-	db *gorm.DB
+	db                  *gorm.DB
+	notificationService *NotificationService
 }
 
-func NewAuthService(db *gorm.DB) *AuthService {
-	return &AuthService{db: db}
+func NewAuthService(db *gorm.DB, notificationService *NotificationService) *AuthService {
+	return &AuthService{db: db, notificationService: notificationService}
 }
 
 type LoginRequest struct {
@@ -84,9 +85,7 @@ func (s *AuthService) Register(req RegisterRequest) (RegisterResponse, error) {
 		return RegisterResponse{}, errors.New("failed to register user")
 	}
 
-	notificationService := NewNotificationService(s.db)
-	notificationMessage := "New user registered: " + req.Username
-	notificationService.CreateAdminNotification(notificationMessage)
+	s.notificationService.CreateAdminNotification("New user registered: " + user.Username)
 
 	return RegisterResponse{
 		Message: "User registered successfully",

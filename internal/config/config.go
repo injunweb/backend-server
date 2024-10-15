@@ -21,6 +21,8 @@ type Config struct {
 	SMTPPass          string
 	JWTSecret         string
 	JWTExpiryHours    string
+	VapidPrivateKey   string
+	VapidPublicKey    string
 	DBHost            string
 	DBPort            string
 	DBUser            string
@@ -51,6 +53,8 @@ func Load() {
 		SMTPPass:          os.Getenv("SMTP_PASS"),
 		JWTSecret:         os.Getenv("JWT_SECRET"),
 		JWTExpiryHours:    os.Getenv("JWT_EXPIRY_HOURS"),
+		VapidPrivateKey:   os.Getenv("VAPID_PRIVATE_KEY"),
+		VapidPublicKey:    os.Getenv("VAPID_PUBLIC_KEY"),
 		DBHost:            os.Getenv("DB_HOST"),
 		DBPort:            os.Getenv("DB_PORT"),
 		DBUser:            os.Getenv("DB_USER"),
