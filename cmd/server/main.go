@@ -37,6 +37,7 @@ func main() {
 		AllowOrigins: []string{
 			"https://dashboard.injunweb.com",
 			"http://localhost:5173",
+			"http://localhost:5500",
 		},
 		AllowMethods:     []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
