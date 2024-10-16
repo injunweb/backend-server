@@ -43,9 +43,7 @@ func (s *NotificationService) CreateNotification(userID uint, message string) er
 				Auth:   sub.Auth,
 			},
 		}
-		if err := webpush.SendNotification(subscription, message); err != nil {
-			return errors.New("failed to send notification")
-		}
+		webpush.SendNotification(subscription, message)
 	}
 
 	return nil
@@ -59,9 +57,7 @@ func (s *NotificationService) CreateAdminNotification(message string) error {
 	}
 
 	for _, user := range users {
-		if err := s.CreateNotification(user.ID, message); err != nil {
-			return err
-		}
+		s.CreateNotification(user.ID, message)
 	}
 	return nil
 }
