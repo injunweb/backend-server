@@ -113,17 +113,14 @@ func (s *NotificationService) GetUserNotifications(userId uint) (GetUsersNotific
 	return response, nil
 }
 
-func (s *NotificationService) MarkAsRead(userId uint, notificationId uint) error {
+func (s *NotificationService) MarkAllAsRead(userId uint) error {
 	result := s.db.
 		Model(&models.Notification{}).
-		Where("id = ? AND user_id = ?", notificationId, userId).
+		Where("user_id = ? AND is_read = ?", userId, false).
 		Updates(map[string]interface{}{"is_read": true})
 
 	if result.Error != nil {
 		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return errors.New("notification not found or already read")
 	}
 
 	return nil

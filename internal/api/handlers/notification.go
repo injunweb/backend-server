@@ -33,15 +33,10 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 	c.JSON(http.StatusOK, notifications)
 }
 
-func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
+func (h *NotificationHandler) MarkAllAsRead(c *gin.Context) {
 	userId, _ := c.Get("user_id")
-	notificationId, err := strconv.ParseUint(c.Param("notificationId"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
-		return
-	}
 
-	err = h.notificationService.MarkAsRead(userId.(uint), uint(notificationId))
+	err := h.notificationService.MarkAllAsRead(userId.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -56,7 +56,7 @@ func SetupRoutes(router *gin.Engine) {
 	notifications.Use(middleware.AuthMiddleware())
 	{
 		notifications.GET("", notificationHandler.GetNotifications)
-		notifications.POST("/:notificationId/read", notificationHandler.MarkAsRead)
+		notifications.POST("/read", notificationHandler.MarkAllAsRead)
 		notifications.DELETE("/:notificationId", notificationHandler.DeleteNotification)
 		notifications.POST("/subscribe", notificationHandler.Subscribe)
 		notifications.GET("/vapid-public-key", notificationHandler.GetVAPIDPublicKey)
