@@ -44,6 +44,7 @@ func (s *NotificationService) CreateNotification(userID uint, message string) er
 			},
 		}
 		if err := webpush.SendNotification(subscription, message); err != nil {
+			return errors.New("failed to send notification")
 		}
 	}
 
