@@ -66,7 +66,18 @@ func (s *NotificationService) CreateAdminNotification(message string) error {
 	return nil
 }
 
-func (s *NotificationService) GetUserNotifications(userId uint) ([]models.Notification, error) {
+type GetUsersNotificationsResponse struct {
+	Notifications []struct {
+		ID        uint   `json:"id"`
+		Message   string `json:"message"`
+		IsRead    bool   `json:"is_read"`
+		CreatedAt string `json:"created_at"`
+	} `json:"notifications"`
+
+	UnreadCount int `json:"unread_count"`
+}
+
+func (s *NotificationService) GetUserNotifications(userId uint) (GetUsersNotificationsResponse, error) {
 	var notifications []models.Notification
 	err := s.db.
 		Where("user_id = ?", userId).
@@ -74,10 +85,32 @@ func (s *NotificationService) GetUserNotifications(userId uint) ([]models.Notifi
 		Find(&notifications).Error
 
 	if err != nil {
-		return nil, errors.New("failed to retrieve notifications")
+		return GetUsersNotificationsResponse{}, errors.New("failed to retrieve notifications")
 	}
 
-	return notifications, nil
+	response := GetUsersNotificationsResponse{
+		UnreadCount: 0,
+	}
+
+	for _, notification := range notifications {
+		response.Notifications = append(response.Notifications, struct {
+			ID        uint   `json:"id"`
+			Message   string `json:"message"`
+			IsRead    bool   `json:"is_read"`
+			CreatedAt string `json:"created_at"`
+		}{
+			ID:        notification.ID,
+			Message:   notification.Message,
+			IsRead:    notification.IsRead,
+			CreatedAt: notification.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+
+		if !notification.IsRead {
+			response.UnreadCount++
+		}
+	}
+
+	return response, nil
 }
 
 func (s *NotificationService) MarkAsRead(userId uint, notificationId uint) error {
@@ -91,6 +124,21 @@ func (s *NotificationService) MarkAsRead(userId uint, notificationId uint) error
 	}
 	if result.RowsAffected == 0 {
 		return errors.New("notification not found or already read")
+	}
+
+	return nil
+}
+
+func (s *NotificationService) DeleteNotification(userId uint, notificationId uint) error {
+	result := s.db.
+		Where("id = ? AND user_id = ?", notificationId, userId).
+		Delete(&models.Notification{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("notification not found")
 	}
 
 	return nil

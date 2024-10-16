@@ -50,6 +50,23 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Notification marked as read successfully"})
 }
 
+func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
+	userId, _ := c.Get("user_id")
+	notificationId, err := strconv.ParseUint(c.Param("notificationId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
+		return
+	}
+
+	err = h.notificationService.DeleteNotification(userId.(uint), uint(notificationId))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Notification deleted successfully"})
+}
+
 func (h *NotificationHandler) Subscribe(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 

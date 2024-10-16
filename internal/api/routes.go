@@ -57,6 +57,7 @@ func SetupRoutes(router *gin.Engine) {
 	{
 		notifications.GET("", notificationHandler.GetNotifications)
 		notifications.POST("/:notificationId/read", notificationHandler.MarkAsRead)
+		notifications.DELETE("/:notificationId", notificationHandler.DeleteNotification)
 		notifications.POST("/subscribe", notificationHandler.Subscribe)
 		notifications.GET("/vapid-public-key", notificationHandler.GetVAPIDPublicKey)
 	}
