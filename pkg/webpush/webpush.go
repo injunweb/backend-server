@@ -1,6 +1,8 @@
 package webpush
 
 import (
+	"fmt"
+
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/injunweb/backend-server/internal/config"
 )
@@ -31,6 +33,10 @@ func SendNotification(subscription Subscription, message string) error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("failed to send push notification, status: %d", resp.StatusCode)
+	}
 
 	return nil
 }
