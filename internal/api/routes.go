@@ -80,7 +80,7 @@ func SetupRoutes(router *gin.Engine) {
 		{
 			adminApplications.GET("", adminHandler.GetAllApplicationsByAdmin)
 			adminApplications.POST("/:appId/approve", adminHandler.ApproveApplicationByAdmin)
-			adminApplications.POST("/:appId/cancle-approve", adminHandler.CancleApproveApplicationByAdmin)
+			adminApplications.POST("/:appId/cancel-approve", adminHandler.CancelApproveApplicationByAdmin)
 			adminApplications.POST("/:appId/primary-hostname", adminHandler.UpdatePrimaryHostnameByAdmin)
 			adminApplications.GET("/:appId", adminHandler.GetApplicationByAdmin)
 		}
