@@ -130,6 +130,7 @@ type GetApplicationResponse struct {
 	Branch          string   `json:"branch"`
 	Port            int      `json:"port"`
 	Description     string   `json:"description"`
+	CreatedAt       string   `json:"created_at"`
 	OwnerID         uint     `json:"owner_id"`
 	Status          string   `json:"status"`
 	PrimaryHostname string   `json:"primary_hostname"`
@@ -153,6 +154,7 @@ func (s *ApplicationService) GetApplication(userId uint, appId uint) (GetApplica
 		Branch:          application.Branch,
 		Port:            application.Port,
 		Description:     application.Description,
+		CreatedAt:       application.CreatedAt.Format("2006-01-02 15:04:05"),
 		OwnerID:         application.OwnerID,
 		Status:          application.Status,
 		PrimaryHostname: application.PrimaryHostname,
