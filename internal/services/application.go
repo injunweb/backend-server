@@ -27,11 +27,12 @@ func NewApplicationService(db *gorm.DB, notificationService *NotificationService
 
 type GetApplicationsResponse struct {
 	Applications []struct {
-		ID        uint   `json:"id"`
-		Name      string `json:"name"`
-		Status    string `json:"status"`
-		GitURL    string `json:"git_url"`
-		CreatedAt string `json:"created_at"`
+		ID          uint   `json:"id"`
+		Name        string `json:"name"`
+		Status      string `json:"status"`
+		GitURL      string `json:"git_url"`
+		Description string `json:"description"`
+		CreatedAt   string `json:"created_at"`
 	} `json:"applications"`
 }
 
@@ -44,17 +45,19 @@ func (s *ApplicationService) GetApplications(userId uint) (GetApplicationsRespon
 	var response GetApplicationsResponse
 	for _, app := range applications {
 		response.Applications = append(response.Applications, struct {
-			ID        uint   `json:"id"`
-			Name      string `json:"name"`
-			Status    string `json:"status"`
-			GitURL    string `json:"git_url"`
-			CreatedAt string `json:"created_at"`
+			ID          uint   `json:"id"`
+			Name        string `json:"name"`
+			Status      string `json:"status"`
+			GitURL      string `json:"git_url"`
+			Description string `json:"description"`
+			CreatedAt   string `json:"created_at"`
 		}{
-			ID:        app.ID,
-			Name:      app.Name,
-			Status:    app.Status,
-			GitURL:    app.GitURL,
-			CreatedAt: app.CreatedAt.Format("2006-01-02 15:04:05"),
+			ID:          app.ID,
+			Name:        app.Name,
+			Status:      app.Status,
+			GitURL:      app.GitURL,
+			Description: app.Description,
+			CreatedAt:   app.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 
