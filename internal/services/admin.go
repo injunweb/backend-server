@@ -117,7 +117,7 @@ type GetAllApplicationsByAdminResponse struct {
 
 func (s *AdminService) GetAllApplicationsByAdmin() (GetAllApplicationsByAdminResponse, error) {
 	var applications []models.Application
-	if err := s.db.Order("created_at DESC").Find(&applications).Error; err != nil {
+	if err := s.db.Preload("Owner").Order("created_at DESC").Find(&applications).Error; err != nil {
 		return GetAllApplicationsByAdminResponse{}, errors.New("failed to retrieve applications")
 	}
 
