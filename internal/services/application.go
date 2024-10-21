@@ -247,10 +247,17 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddE
 		return AddExtralHostnameResponse{}, errors.New("hostname already exists")
 	}
 
-	for _, hostname := range application.ExtraHostnames {
-		if hostname.Hostname == req.Hostname {
-			return AddExtralHostnameResponse{}, errors.New("hostname already exists")
+	var existingHostname models.ExtraHostnames
+	if err := s.db.Unscoped().Where("hostname = ? AND application_id = ?", req.Hostname, application.ID).First(&existingHostname).Error; err == nil {
+		if !existingHostname.DeletedAt.Valid {
+			if err := s.db.Model(&existingHostname).Update("deleted_at", nil).Error; err != nil {
+				return AddExtralHostnameResponse{}, errors.New("failed to restore soft deleted hostname")
+			}
+			return AddExtralHostnameResponse{
+				Message: "Soft deleted hostname restored successfully",
+			}, nil
 		}
+		return AddExtralHostnameResponse{}, errors.New("hostname already exists")
 	}
 
 	hostname := models.ExtraHostnames{
