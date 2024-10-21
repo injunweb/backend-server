@@ -262,7 +262,7 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddE
 		return AddExtralHostnameResponse{}, errors.New("failed to add additional hostname")
 	}
 
-	if err := github.TriggerAddAdditionalHostnameWorkflow(application, req.Hostname); err != nil {
+	if err := github.TriggerAddExtraHostnameWorkflow(application, req.Hostname); err != nil {
 		return AddExtralHostnameResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
 	}
 
@@ -306,7 +306,7 @@ func (s *ApplicationService) DeleteExtraHostname(userId uint, appId uint, req De
 		return DeleteAdditionalHostnameResponse{}, errors.New("failed to delete additional hostname")
 	}
 
-	if err := github.TriggerDeleteAdditionalHostnameWorkflow(application, req.Hostname); err != nil {
+	if err := github.TriggerDeleteExtraHostnameWorkflow(application, req.Hostname); err != nil {
 		return DeleteAdditionalHostnameResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
 	}
 

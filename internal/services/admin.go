@@ -260,7 +260,7 @@ func (s *AdminService) UpdatePrimaryHostnameByAdmin(appId uint, request UpdateCu
 		return UpdateCustomHostnameByAdminResponse{}, errors.New("application not approved")
 	}
 
-	if err := github.TriggerUpdateCustomHostname(application, request.Hostname); err != nil {
+	if err := github.TriggerUpdatePrimaryHostname(application, request.Hostname); err != nil {
 		return UpdateCustomHostnameByAdminResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
 	}
 

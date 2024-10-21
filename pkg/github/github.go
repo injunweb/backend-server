@@ -84,9 +84,9 @@ func TriggerRemovePipelineWorkflow(app models.Application) error {
 	return nil
 }
 
-func TriggerAddAdditionalHostnameWorkflow(app models.Application, hostname string) error {
+func TriggerAddExtraHostnameWorkflow(app models.Application, hostname string) error {
 	payload := map[string]interface{}{
-		"event_type": "add-additional-hostname",
+		"event_type": "add-extra-hostname",
 		"client_payload": map[string]string{
 			"appName":  app.Name,
 			"hostname": hostname,
@@ -120,9 +120,9 @@ func TriggerAddAdditionalHostnameWorkflow(app models.Application, hostname strin
 	return nil
 }
 
-func TriggerDeleteAdditionalHostnameWorkflow(app models.Application, hostname string) error {
+func TriggerDeleteExtraHostnameWorkflow(app models.Application, hostname string) error {
 	payload := map[string]interface{}{
-		"event_type": "delete-additional-hostname",
+		"event_type": "delete-extra-hostname",
 		"client_payload": map[string]string{
 			"appName":  app.Name,
 			"hostname": hostname,
@@ -156,9 +156,9 @@ func TriggerDeleteAdditionalHostnameWorkflow(app models.Application, hostname st
 	return nil
 }
 
-func TriggerUpdateCustomHostname(app models.Application, hostname string) error {
+func TriggerUpdatePrimaryHostname(app models.Application, hostname string) error {
 	payload := map[string]interface{}{
-		"event_type": "update-custom-hostname",
+		"event_type": "update-primary-hostname",
 		"client_payload": map[string]string{
 			"appName":  app.Name,
 			"hostname": hostname,
