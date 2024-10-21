@@ -221,35 +221,35 @@ func (s *ApplicationService) DeleteApplication(userId uint, appId uint) (DeleteA
 	}, nil
 }
 
-type AddAdditionalHostnameRequest struct {
+type AddExtralHostnameRequest struct {
 	Hostname string `json:"hostname" binding:"required"`
 }
 
-type AddAdditionalHostnameResponse struct {
+type AddExtralHostnameResponse struct {
 	Message string `json:"message"`
 }
 
-func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddAdditionalHostnameRequest) (AddAdditionalHostnameResponse, error) {
+func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddExtralHostnameRequest) (AddExtralHostnameResponse, error) {
 	var application models.Application
 	if err := s.db.First(&application, appId).Error; err != nil {
-		return AddAdditionalHostnameResponse{}, errors.New("application not found")
+		return AddExtralHostnameResponse{}, errors.New("application not found")
 	}
 
 	if application.OwnerID != userId {
-		return AddAdditionalHostnameResponse{}, errors.New("permission denied")
+		return AddExtralHostnameResponse{}, errors.New("permission denied")
 	}
 
 	if application.Status != models.ApplicationStatusApproved {
-		return AddAdditionalHostnameResponse{}, errors.New("application not approved")
+		return AddExtralHostnameResponse{}, errors.New("application not approved")
 	}
 
 	if application.PrimaryHostname == req.Hostname {
-		return AddAdditionalHostnameResponse{}, errors.New("hostname already exists")
+		return AddExtralHostnameResponse{}, errors.New("hostname already exists")
 	}
 
 	for _, hostname := range application.ExtraHostnames {
 		if hostname.Hostname == req.Hostname {
-			return AddAdditionalHostnameResponse{}, errors.New("hostname already exists")
+			return AddExtralHostnameResponse{}, errors.New("hostname already exists")
 		}
 	}
 
@@ -259,14 +259,14 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddA
 	}
 
 	if err := s.db.Create(&hostname).Error; err != nil {
-		return AddAdditionalHostnameResponse{}, errors.New("failed to add additional hostname")
+		return AddExtralHostnameResponse{}, errors.New("failed to add additional hostname")
 	}
 
 	if err := github.TriggerAddAdditionalHostnameWorkflow(application, req.Hostname); err != nil {
-		return AddAdditionalHostnameResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+		return AddExtralHostnameResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
 	}
 
-	return AddAdditionalHostnameResponse{
+	return AddExtralHostnameResponse{
 		Message: "Additional hostname added successfully",
 	}, nil
 }

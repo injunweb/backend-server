@@ -77,7 +77,7 @@ func (h *ApplicationHandler) AddExtralHostname(c *gin.Context) {
 	userId, _ := c.Get("user_id")
 	appId, _ := strconv.ParseUint(c.Param("appId"), 10, 32)
 
-	var request services.AddAdditionalHostnameRequest
+	var request services.AddExtralHostnameRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
