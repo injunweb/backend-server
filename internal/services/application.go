@@ -254,12 +254,10 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddE
 		if !existingHostname.DeletedAt.Valid {
 			return AddExtralHostnameResponse{}, errors.New("hostname already exists")
 		}
-		if err := s.db.Model(&existingHostname).Update("deleted_at", nil).Error; err != nil {
+		if err := s.db.Model(&existingHostname).Update("deleted_at", gorm.Expr("NULL")).Error; err != nil {
 			return AddExtralHostnameResponse{}, fmt.Errorf("failed to restore soft deleted hostname: %w", err)
 		}
-	} else if err != gorm.ErrRecordNotFound {
-		return AddExtralHostnameResponse{}, fmt.Errorf("failed to check hostname existence: %w", err)
-	} else {
+	} else if err == gorm.ErrRecordNotFound {
 		newHostname := models.ExtraHostnames{
 			ApplicationID: application.ID,
 			Hostname:      req.Hostname,
@@ -268,6 +266,8 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddE
 		if err := s.db.Create(&newHostname).Error; err != nil {
 			return AddExtralHostnameResponse{}, fmt.Errorf("failed to add extra hostname: %w", err)
 		}
+	} else {
+		return AddExtralHostnameResponse{}, fmt.Errorf("failed to check hostname existence: %w", err)
 	}
 
 	if err := github.TriggerAddExtraHostnameWorkflow(application, req.Hostname); err != nil {
