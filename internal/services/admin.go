@@ -111,6 +111,7 @@ type GetAllApplicationsByAdminResponse struct {
 		Name          string `json:"name"`
 		Status        string `json:"status"`
 		OwnerUsername string `json:"owner_username"`
+		GitURL        string `json:"git_url"`
 		CreatedAt     string `json:"created_at"`
 	} `json:"applications"`
 }
@@ -128,12 +129,14 @@ func (s *AdminService) GetAllApplicationsByAdmin() (GetAllApplicationsByAdminRes
 			Name          string `json:"name"`
 			Status        string `json:"status"`
 			OwnerUsername string `json:"owner_username"`
+			GitURL        string `json:"git_url"`
 			CreatedAt     string `json:"created_at"`
 		}{
 			ID:            app.ID,
 			Name:          app.Name,
 			Status:        app.Status,
 			OwnerUsername: app.Owner.Username,
+			GitURL:        app.GitURL,
 			CreatedAt:     app.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
