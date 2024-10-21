@@ -107,9 +107,11 @@ func (s *AdminService) GetApplicationsByAdmin(userId uint) (GetApplicationsByAdm
 
 type GetAllApplicationsByAdminResponse struct {
 	Applications []struct {
-		ID     uint   `json:"id"`
-		Name   string `json:"name"`
-		Status string `json:"status"`
+		ID            uint   `json:"id"`
+		Name          string `json:"name"`
+		Status        string `json:"status"`
+		OwnerUsername string `json:"owner_username"`
+		CreatedAt     string `json:"created_at"`
 	} `json:"applications"`
 }
 
@@ -122,13 +124,17 @@ func (s *AdminService) GetAllApplicationsByAdmin() (GetAllApplicationsByAdminRes
 	var response GetAllApplicationsByAdminResponse
 	for _, app := range applications {
 		response.Applications = append(response.Applications, struct {
-			ID     uint   `json:"id"`
-			Name   string `json:"name"`
-			Status string `json:"status"`
+			ID            uint   `json:"id"`
+			Name          string `json:"name"`
+			Status        string `json:"status"`
+			OwnerUsername string `json:"owner_username"`
+			CreatedAt     string `json:"created_at"`
 		}{
-			ID:     app.ID,
-			Name:   app.Name,
-			Status: app.Status,
+			ID:            app.ID,
+			Name:          app.Name,
+			Status:        app.Status,
+			OwnerUsername: app.Owner.Username,
+			CreatedAt:     app.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 
