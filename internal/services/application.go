@@ -232,7 +232,7 @@ type AddExtralHostnameResponse struct {
 func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddExtralHostnameRequest) (AddExtralHostnameResponse, error) {
 	var application models.Application
 	if err := s.db.First(&application, appId).Error; err != nil {
-		return AddExtralHostnameResponse{}, errors.New("application not found")
+		return AddExtralHostnameResponse{}, fmt.Errorf("application not found: %w", err)
 	}
 
 	if application.OwnerID != userId {
@@ -244,33 +244,34 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddE
 	}
 
 	if application.PrimaryHostname == req.Hostname {
-		return AddExtralHostnameResponse{}, errors.New("hostname already exists")
+		return AddExtralHostnameResponse{}, errors.New("hostname already exists as primary hostname")
 	}
 
 	var existingHostname models.ExtraHostnames
-	if err := s.db.Unscoped().Where("hostname = ? AND application_id = ?", req.Hostname, application.ID).First(&existingHostname).Error; err == nil {
+	err := s.db.Unscoped().Where("hostname = ? AND application_id = ?", req.Hostname, application.ID).First(&existingHostname).Error
+
+	if err == nil {
 		if !existingHostname.DeletedAt.Valid {
-			if err := s.db.Model(&existingHostname).Update("deleted_at", nil).Error; err != nil {
-				return AddExtralHostnameResponse{}, errors.New("failed to restore soft deleted hostname")
-			}
-			return AddExtralHostnameResponse{
-				Message: "Soft deleted hostname restored successfully",
-			}, nil
+			return AddExtralHostnameResponse{}, errors.New("hostname already exists")
 		}
-		return AddExtralHostnameResponse{}, errors.New("hostname already exists")
-	}
+		if err := s.db.Model(&existingHostname).Update("deleted_at", nil).Error; err != nil {
+			return AddExtralHostnameResponse{}, fmt.Errorf("failed to restore soft deleted hostname: %w", err)
+		}
+	} else if err != gorm.ErrRecordNotFound {
+		return AddExtralHostnameResponse{}, fmt.Errorf("failed to check hostname existence: %w", err)
+	} else {
+		newHostname := models.ExtraHostnames{
+			ApplicationID: application.ID,
+			Hostname:      req.Hostname,
+		}
 
-	hostname := models.ExtraHostnames{
-		ApplicationID: application.ID,
-		Hostname:      req.Hostname,
-	}
-
-	if err := s.db.Create(&hostname).Error; err != nil {
-		return AddExtralHostnameResponse{}, errors.New("failed to add additional hostname")
+		if err := s.db.Create(&newHostname).Error; err != nil {
+			return AddExtralHostnameResponse{}, fmt.Errorf("failed to add extra hostname: %w", err)
+		}
 	}
 
 	if err := github.TriggerAddExtraHostnameWorkflow(application, req.Hostname); err != nil {
-		return AddExtralHostnameResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+		return AddExtralHostnameResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %w", err)
 	}
 
 	return AddExtralHostnameResponse{
@@ -301,7 +302,7 @@ func (s *ApplicationService) DeleteExtraHostname(userId uint, appId uint, req De
 	}
 
 	if application.PrimaryHostname == req.Hostname {
-		return DeleteAdditionalHostnameResponse{}, errors.New("cannot delete custom hostname")
+		return DeleteAdditionalHostnameResponse{}, errors.New("cannot delete primary hostname")
 	}
 
 	var hostname models.ExtraHostnames
@@ -310,7 +311,7 @@ func (s *ApplicationService) DeleteExtraHostname(userId uint, appId uint, req De
 	}
 
 	if err := s.db.Delete(&hostname).Error; err != nil {
-		return DeleteAdditionalHostnameResponse{}, errors.New("failed to delete additional hostname")
+		return DeleteAdditionalHostnameResponse{}, errors.New("failed to delete extra hostname")
 	}
 
 	if err := github.TriggerDeleteExtraHostnameWorkflow(application, req.Hostname); err != nil {
