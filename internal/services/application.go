@@ -139,7 +139,7 @@ type GetApplicationResponse struct {
 
 func (s *ApplicationService) GetApplication(userId uint, appId uint) (GetApplicationResponse, error) {
 	var application models.Application
-	if err := s.db.First(&application, appId).Error; err != nil {
+	if err := s.db.Preload("ExtraHostnames").First(&application, appId).Error; err != nil {
 		return GetApplicationResponse{}, errors.New("application not found")
 	}
 
