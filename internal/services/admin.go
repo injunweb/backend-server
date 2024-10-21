@@ -278,13 +278,15 @@ type GetApplicationByAdminResponse struct {
 	Description     string   `json:"description"`
 	OwnerID         uint     `json:"owner_id"`
 	Status          string   `json:"status"`
+	OwnerUsername   string   `json:"owner_username"`
 	PrimaryHostname string   `json:"primary_hostname"`
 	ExtraHostnames  []string `json:"extra_hostnames"`
+	CreationDate    string   `json:"creation_date"`
 }
 
 func (s *AdminService) GetApplicationByAdmin(appId uint) (GetApplicationByAdminResponse, error) {
 	var application models.Application
-	if err := s.db.First(&application, appId).Error; err != nil {
+	if err := s.db.Preload("Owner").Preload("ExtraHostnames").First(&application, appId).Error; err != nil {
 		return GetApplicationByAdminResponse{}, errors.New("application not found")
 	}
 
@@ -297,6 +299,7 @@ func (s *AdminService) GetApplicationByAdmin(appId uint) (GetApplicationByAdminR
 		Description:     application.Description,
 		OwnerID:         application.OwnerID,
 		Status:          application.Status,
+		OwnerUsername:   application.Owner.Username,
 		PrimaryHostname: application.PrimaryHostname,
 		ExtraHostnames: func() []string {
 			var extraHostnames []string
@@ -305,5 +308,6 @@ func (s *AdminService) GetApplicationByAdmin(appId uint) (GetApplicationByAdminR
 			}
 			return extraHostnames
 		}(),
+		CreationDate: application.CreatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 }
