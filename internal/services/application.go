@@ -254,7 +254,7 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddE
 		if !existingHostname.DeletedAt.Valid {
 			return AddExtralHostnameResponse{}, errors.New("hostname already exists")
 		}
-		if err := s.db.Model(&existingHostname).Update("deleted_at", gorm.Expr("NULL")).Error; err != nil {
+		if err := s.db.Unscoped().Model(&existingHostname).Update("deleted_at", nil).Error; err != nil {
 			return AddExtralHostnameResponse{}, fmt.Errorf("failed to restore soft deleted hostname: %w", err)
 		}
 	} else if err == gorm.ErrRecordNotFound {
