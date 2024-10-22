@@ -248,7 +248,7 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddE
 	}
 
 	var existingHostname models.ExtraHostnames
-	err := s.db.Unscoped().Where("hostname = ? AND application_id = ?", req.Hostname, application.ID).First(&existingHostname).Error
+	err := s.db.Unscoped().Where("hostname = ?", req.Hostname).First(&existingHostname).Error
 
 	if err == nil {
 		if !existingHostname.DeletedAt.Valid {
@@ -256,6 +256,9 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddE
 		}
 		if err := s.db.Unscoped().Model(&existingHostname).Update("deleted_at", nil).Error; err != nil {
 			return AddExtralHostnameResponse{}, fmt.Errorf("failed to restore soft deleted hostname: %w", err)
+		}
+		if err := s.db.Model(&existingHostname).Update("application_id", application.ID).Error; err != nil {
+			return AddExtralHostnameResponse{}, fmt.Errorf("failed to update hostname: %w", err)
 		}
 	} else if err == gorm.ErrRecordNotFound {
 		newHostname := models.ExtraHostnames{
