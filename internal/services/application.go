@@ -219,6 +219,10 @@ type AddExtralHostnameResponse struct {
 }
 
 func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddExtralHostnameRequest) (AddExtralHostnameResponse, error) {
+	if !validator.IsValidHostname(req.Hostname) {
+		return AddExtralHostnameResponse{}, errors.New("invalid hostname")
+	}
+
 	var application models.Application
 	if err := s.db.First(&application, appId).Error; err != nil {
 		return AddExtralHostnameResponse{}, fmt.Errorf("application not found: %w", err)
