@@ -3,14 +3,13 @@ package services
 import (
 	"errors"
 	"fmt"
-	"regexp"
-	"strings"
 
 	"github.com/injunweb/backend-server/internal/models"
 	"github.com/injunweb/backend-server/pkg/database"
 	"github.com/injunweb/backend-server/pkg/github"
 	"github.com/injunweb/backend-server/pkg/harbor"
 	"github.com/injunweb/backend-server/pkg/kubernetes"
+	"github.com/injunweb/backend-server/pkg/validator"
 	"github.com/injunweb/backend-server/pkg/vault"
 
 	"gorm.io/gorm"
@@ -77,27 +76,17 @@ type SubmitApplicationResponse struct {
 }
 
 func (s *ApplicationService) SubmitApplication(userId uint, req SubmitApplicationRequest) (SubmitApplicationResponse, error) {
-	pattern := `^[a-z0-9\-]+$`
-	forbiddenKeywords := []string{"--", "#", ";", "SELECT", "INSERT", "UPDATE", "DELETE", "DROP", "EXEC", "UNION", "OR", "AND"}
-
-	if matched, err := regexp.MatchString(pattern, req.Name); !matched || err != nil {
-		return SubmitApplicationResponse{}, errors.New("invalid application name format")
+	if !validator.IsValidApplicationName(req.Name) {
+		return SubmitApplicationResponse{}, errors.New("invalid application name")
 	}
 
-	nameUpper := strings.ToUpper(req.Name)
-	for _, keyword := range forbiddenKeywords {
-		if strings.Contains(nameUpper, keyword) {
-			return SubmitApplicationResponse{}, errors.New("application name contains forbidden characters or SQL keywords")
-		}
+	if !validator.IsValidPort(req.Port) {
+		return SubmitApplicationResponse{}, errors.New("invalid port")
 	}
 
 	var existingApp models.Application
 	if err := s.db.Where("name = ?", req.Name).First(&existingApp).Error; err == nil {
 		return SubmitApplicationResponse{}, errors.New("application name already exists")
-	}
-
-	if req.Port < 1 || req.Port > 65535 {
-		return SubmitApplicationResponse{}, errors.New("invalid port number")
 	}
 
 	application := models.Application{

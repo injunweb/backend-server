@@ -6,6 +6,7 @@ import (
 
 	"github.com/injunweb/backend-server/internal/config"
 	"github.com/injunweb/backend-server/internal/models"
+	"github.com/injunweb/backend-server/pkg/validator"
 
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
@@ -69,6 +70,23 @@ type RegisterResponse struct {
 }
 
 func (s *AuthService) Register(req RegisterRequest) (RegisterResponse, error) {
+	if !validator.IsValidUsername(req.Username) {
+		return RegisterResponse{}, errors.New("invalid username")
+	}
+
+	if !validator.IsValidEmail(req.Email) {
+		return RegisterResponse{}, errors.New("invalid email")
+	}
+
+	if !validator.IsValidPassword(req.Password) {
+		return RegisterResponse{}, errors.New("invalid password")
+	}
+
+	var existingUser models.User
+	if err := s.db.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+		return RegisterResponse{}, errors.New("username already exists")
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return RegisterResponse{}, errors.New("failed to hash password")
