@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/injunweb/backend-server/internal/models"
+	"github.com/injunweb/backend-server/pkg/validator"
 
 	"gorm.io/gorm"
 )
@@ -52,11 +53,11 @@ func (s *UserService) UpdateUser(userId uint, req UpdateUserRequest) (UpdateUser
 		return UpdateUserResponse{}, errors.New("user not found")
 	}
 
-	if req.Email != "" {
-		user.Email = req.Email
+	if !validator.IsValidEmail(req.Email) {
+		return UpdateUserResponse{}, errors.New("invalid email")
 	}
-	if req.Username != "" {
-		user.Username = req.Username
+	if !validator.IsValidUsername(req.Username) {
+		return UpdateUserResponse{}, errors.New("invalid username")
 	}
 
 	if err := s.db.Save(&user).Error; err != nil {
