@@ -55,10 +55,11 @@ func (s *AdminService) GetUsersByAdmin() (GetUsersByAdminResponse, error) {
 }
 
 type GetUserByAdminResponse struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	IsAdmin  bool   `json:"is_admin"`
+	ID        uint   `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	IsAdmin   bool   `json:"is_admin"`
+	CreatedAt string `json:"created_at"`
 }
 
 func (s *AdminService) GetUserByAdmin(userId uint) (GetUserByAdminResponse, error) {
@@ -68,10 +69,11 @@ func (s *AdminService) GetUserByAdmin(userId uint) (GetUserByAdminResponse, erro
 	}
 
 	return GetUserByAdminResponse{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		IsAdmin:  user.IsAdmin,
+		ID:        user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		IsAdmin:   user.IsAdmin,
+		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
