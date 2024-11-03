@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/injunweb/backend-server/internal/services"
-
 	"github.com/gin-gonic/gin"
+	"github.com/injunweb/backend-server/internal/services"
+	"github.com/injunweb/backend-server/pkg/errors"
 )
 
 type UserHandler struct {
@@ -21,7 +21,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 
 	response, err := h.userService.GetUser(userId.(uint))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -33,13 +33,13 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 
 	var updateRequest services.UpdateUserRequest
 	if err := c.ShouldBindJSON(&updateRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(errors.BadRequest("invalid request format"))
 		return
 	}
 
 	response, err := h.userService.UpdateUser(userId.(uint), updateRequest)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
