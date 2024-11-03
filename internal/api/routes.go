@@ -22,6 +22,8 @@ func SetupRoutes(router *gin.Engine) {
 	notificationHandler := handlers.NewNotificationHandler(notificationService, userService)
 	adminHandler := handlers.NewAdminHandler(adminService)
 
+	router.Use(middleware.ErrorMiddleware())
+
 	auth := router.Group("/auth")
 	{
 		auth.POST("/login", authHandler.Login)
