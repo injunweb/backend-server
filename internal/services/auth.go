@@ -1,11 +1,11 @@
 package services
 
 import (
-	"errors"
 	"time"
 
 	"github.com/injunweb/backend-server/internal/config"
 	"github.com/injunweb/backend-server/internal/models"
+	"github.com/injunweb/backend-server/pkg/errors"
 	"github.com/injunweb/backend-server/pkg/validator"
 
 	"github.com/golang-jwt/jwt"
@@ -32,14 +32,14 @@ type LoginResponse struct {
 	Message string `json:"message"`
 }
 
-func (s *AuthService) Login(req LoginRequest) (LoginResponse, error) {
+func (s *AuthService) Login(req LoginRequest) (LoginResponse, errors.CustomError) {
 	var user models.User
 	if err := s.db.Where("username = ?", req.Username).First(&user).Error; err != nil {
-		return LoginResponse{}, errors.New("invalid credentials")
+		return LoginResponse{}, errors.Unauthorized("invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		return LoginResponse{}, errors.New("invalid credentials")
+		return LoginResponse{}, errors.Unauthorized("invalid credentials")
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -50,7 +50,7 @@ func (s *AuthService) Login(req LoginRequest) (LoginResponse, error) {
 
 	tokenString, err := token.SignedString([]byte(config.AppConfig.JWTSecret))
 	if err != nil {
-		return LoginResponse{}, errors.New("failed to generate token")
+		return LoginResponse{}, errors.Internal("failed to generate token")
 	}
 
 	return LoginResponse{
@@ -69,27 +69,27 @@ type RegisterResponse struct {
 	Message string `json:"message"`
 }
 
-func (s *AuthService) Register(req RegisterRequest) (RegisterResponse, error) {
+func (s *AuthService) Register(req RegisterRequest) (RegisterResponse, errors.CustomError) {
 	if !validator.IsValidUsername(req.Username) {
-		return RegisterResponse{}, errors.New("invalid username")
+		return RegisterResponse{}, errors.BadRequest("invalid username")
 	}
 
 	if !validator.IsValidEmail(req.Email) {
-		return RegisterResponse{}, errors.New("invalid email")
+		return RegisterResponse{}, errors.BadRequest("invalid email")
 	}
 
 	if !validator.IsValidPassword(req.Password) {
-		return RegisterResponse{}, errors.New("invalid password")
+		return RegisterResponse{}, errors.BadRequest("invalid password")
 	}
 
 	var existingUser models.User
 	if err := s.db.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
-		return RegisterResponse{}, errors.New("username already exists")
+		return RegisterResponse{}, errors.Conflict("username already exists")
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return RegisterResponse{}, errors.New("failed to hash password")
+		return RegisterResponse{}, errors.Internal("failed to hash password")
 	}
 
 	user := models.User{
@@ -100,7 +100,7 @@ func (s *AuthService) Register(req RegisterRequest) (RegisterResponse, error) {
 	}
 
 	if err := s.db.Create(&user).Error; err != nil {
-		return RegisterResponse{}, errors.New("failed to register user")
+		return RegisterResponse{}, errors.Internal("failed to register user")
 	}
 
 	s.notificationService.CreateAdminNotification("New user registered: " + user.Username)
