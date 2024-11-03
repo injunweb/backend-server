@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/injunweb/backend-server/internal/services"
-
 	"github.com/gin-gonic/gin"
+	"github.com/injunweb/backend-server/internal/services"
+	"github.com/injunweb/backend-server/pkg/errors"
 )
 
 type ApplicationHandler struct {
@@ -22,7 +22,7 @@ func (h *ApplicationHandler) GetApplications(c *gin.Context) {
 
 	response, err := h.applicationService.GetApplications(userId.(uint))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -34,13 +34,13 @@ func (h *ApplicationHandler) SubmitApplication(c *gin.Context) {
 
 	var request services.SubmitApplicationRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(errors.BadRequest("invalid request format"))
 		return
 	}
 
 	response, err := h.applicationService.SubmitApplication(userId.(uint), request)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -53,7 +53,7 @@ func (h *ApplicationHandler) GetApplication(c *gin.Context) {
 
 	response, err := h.applicationService.GetApplication(userId.(uint), uint(appId))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *ApplicationHandler) DeleteApplication(c *gin.Context) {
 
 	response, err := h.applicationService.DeleteApplication(userId.(uint), uint(appId))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -79,13 +79,13 @@ func (h *ApplicationHandler) AddExtralHostname(c *gin.Context) {
 
 	var request services.AddExtralHostnameRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(errors.BadRequest("invalid request format"))
 		return
 	}
 
 	response, err := h.applicationService.AddExtralHostname(userId.(uint), uint(appId), request)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -98,13 +98,13 @@ func (h *ApplicationHandler) DeleteExtraHostname(c *gin.Context) {
 
 	var request services.DeleteAdditionalHostnameRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(errors.BadRequest("invalid request format"))
 		return
 	}
 
 	response, err := h.applicationService.DeleteExtraHostname(userId.(uint), uint(appId), request)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (h *ApplicationHandler) GetEnvironments(c *gin.Context) {
 
 	response, err := h.applicationService.GetEnvironments(userId.(uint), uint(appId))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -130,13 +130,13 @@ func (h *ApplicationHandler) UpdateEnvironment(c *gin.Context) {
 
 	var request services.UpdateEnvironmentRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(errors.BadRequest("invalid request format"))
 		return
 	}
 
 	response, err := h.applicationService.UpdateEnvironment(userId.(uint), uint(appId), request)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
