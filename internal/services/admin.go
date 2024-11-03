@@ -1,12 +1,12 @@
 package services
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/injunweb/backend-server/internal/models"
 	"github.com/injunweb/backend-server/pkg/database"
 	"github.com/injunweb/backend-server/pkg/email"
+	"github.com/injunweb/backend-server/pkg/errors"
 	"github.com/injunweb/backend-server/pkg/github"
 	"github.com/injunweb/backend-server/pkg/harbor"
 	"github.com/injunweb/backend-server/pkg/kubernetes"
@@ -32,10 +32,10 @@ type GetUsersByAdminResponse struct {
 	} `json:"users"`
 }
 
-func (s *AdminService) GetUsersByAdmin() (GetUsersByAdminResponse, error) {
+func (s *AdminService) GetUsersByAdmin() (GetUsersByAdminResponse, errors.CustomError) {
 	var users []models.User
 	if err := s.db.Find(&users).Error; err != nil {
-		return GetUsersByAdminResponse{}, errors.New("failed to retrieve users")
+		return GetUsersByAdminResponse{}, errors.NotFound("users not found")
 	}
 
 	var response GetUsersByAdminResponse
@@ -62,10 +62,10 @@ type GetUserByAdminResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func (s *AdminService) GetUserByAdmin(userId uint) (GetUserByAdminResponse, error) {
+func (s *AdminService) GetUserByAdmin(userId uint) (GetUserByAdminResponse, errors.CustomError) {
 	var user models.User
 	if err := s.db.First(&user, userId).Error; err != nil {
-		return GetUserByAdminResponse{}, errors.New("user not found")
+		return GetUserByAdminResponse{}, errors.NotFound("user not found")
 	}
 
 	return GetUserByAdminResponse{
@@ -86,10 +86,10 @@ type GetApplicationsByAdminResponse struct {
 	} `json:"applications"`
 }
 
-func (s *AdminService) GetApplicationsByAdmin(userId uint) (GetApplicationsByAdminResponse, error) {
+func (s *AdminService) GetApplicationsByAdmin(userId uint) (GetApplicationsByAdminResponse, errors.CustomError) {
 	var applications []models.Application
 	if err := s.db.Where("owner_id = ?", userId).Find(&applications).Error; err != nil {
-		return GetApplicationsByAdminResponse{}, errors.New("failed to retrieve applications")
+		return GetApplicationsByAdminResponse{}, errors.NotFound("applications not found")
 	}
 
 	var response GetApplicationsByAdminResponse
@@ -121,10 +121,10 @@ type GetAllApplicationsByAdminResponse struct {
 	} `json:"applications"`
 }
 
-func (s *AdminService) GetAllApplicationsByAdmin() (GetAllApplicationsByAdminResponse, error) {
+func (s *AdminService) GetAllApplicationsByAdmin() (GetAllApplicationsByAdminResponse, errors.CustomError) {
 	var applications []models.Application
 	if err := s.db.Preload("Owner").Order("created_at DESC").Find(&applications).Error; err != nil {
-		return GetAllApplicationsByAdminResponse{}, errors.New("failed to retrieve applications")
+		return GetAllApplicationsByAdminResponse{}, errors.Internal("failed to retrieve applications")
 	}
 
 	var response GetAllApplicationsByAdminResponse
@@ -153,41 +153,41 @@ type ApproveApplicationByAdminResponse struct {
 	Message string `json:"message"`
 }
 
-func (s *AdminService) ApproveApplicationByAdmin(appId uint) (ApproveApplicationByAdminResponse, error) {
+func (s *AdminService) ApproveApplicationByAdmin(appId uint) (ApproveApplicationByAdminResponse, errors.CustomError) {
 	var application models.Application
 	if err := s.db.First(&application, appId).Error; err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.New("application not found")
+		return ApproveApplicationByAdminResponse{}, errors.NotFound("application not found")
 	}
 
 	if application.Status != models.ApplicationStatusPending {
-		return ApproveApplicationByAdminResponse{}, errors.New("application already approved")
+		return ApproveApplicationByAdminResponse{}, errors.BadRequest("application already approved")
 	}
 
 	if err := vault.InitSecret(application.Name, map[string]interface{}{"PORT": fmt.Sprintf("%d", application.Port)}); err != nil {
-		return ApproveApplicationByAdminResponse{}, fmt.Errorf("failed to initialize Vault secret: %v", err)
+		return ApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to initialize Vault secret: %v", err))
 	}
 
 	if err := github.TriggerWriteValuesWorkflow(application); err != nil {
-		return ApproveApplicationByAdminResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+		return ApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
 	}
 
 	password, err := database.CreateDatabaseAndUser(application.Name)
 	if err != nil {
-		return ApproveApplicationByAdminResponse{}, fmt.Errorf("failed to create database and user: %v", err)
+		return ApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to create database and user: %v", err))
 	}
 
 	var owner models.User
 	if err := s.db.First(&owner, application.OwnerID).Error; err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.New("failed to find user email")
+		return ApproveApplicationByAdminResponse{}, errors.NotFound("failed to find user email")
 	}
 
 	if err := email.SendApprovalEmail(owner.Email, application.Name, password); err != nil {
-		return ApproveApplicationByAdminResponse{}, fmt.Errorf("failed to send email: %v", err)
+		return ApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to send email: %v", err))
 	}
 
 	application.Status = models.ApplicationStatusApproved
 	if err := s.db.Save(&application).Error; err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.New("failed to update application status")
+		return ApproveApplicationByAdminResponse{}, errors.Internal("failed to update application status")
 	}
 
 	s.notificationService.CreateNotification(application.OwnerID, fmt.Sprintf("Your application %s has been approved", application.Name))
@@ -201,45 +201,45 @@ type CancelApproveApplicationByAdminResponse struct {
 	Message string `json:"message"`
 }
 
-func (s *AdminService) CancelApproveApplicationByAdmin(appId uint) (CancelApproveApplicationByAdminResponse, error) {
+func (s *AdminService) CancelApproveApplicationByAdmin(appId uint) (CancelApproveApplicationByAdminResponse, errors.CustomError) {
 	var application models.Application
 	if err := s.db.First(&application, appId).Error; err != nil {
-		return CancelApproveApplicationByAdminResponse{}, errors.New("application not found")
+		return CancelApproveApplicationByAdminResponse{}, errors.NotFound("application not found")
 	}
 
 	if application.Status != models.ApplicationStatusApproved {
-		return CancelApproveApplicationByAdminResponse{}, errors.New("application not approved")
+		return CancelApproveApplicationByAdminResponse{}, errors.BadRequest("application not approved")
 	}
 
 	if kubernetes.NamespaceExists(application.Name) {
 		if err := kubernetes.DeleteNamespace(application.Name); err != nil {
-			return CancelApproveApplicationByAdminResponse{}, fmt.Errorf("failed to delete namespace: %v", err)
+			return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to delete namespace: %v", err))
 		}
 	}
 
 	if exists, err := harbor.RepositoryExists(application.Name); err != nil {
-		return CancelApproveApplicationByAdminResponse{}, fmt.Errorf("failed to check Harbor repository: %v", err)
+		return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to check Harbor repository: %v", err))
 	} else if exists {
 		if err := harbor.DeleteRepository(application.Name); err != nil {
-			return CancelApproveApplicationByAdminResponse{}, fmt.Errorf("failed to delete Harbor repository: %v", err)
+			return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to delete Harbor repository: %v", err))
 		}
 	}
 
 	if err := vault.DeleteSecret(application.Name); err != nil {
-		return CancelApproveApplicationByAdminResponse{}, fmt.Errorf("failed to delete secret: %v", err)
+		return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to delete secret: %v", err))
 	}
 
 	if err := database.DeleteDatabaseAndUser(application.Name); err != nil {
-		return CancelApproveApplicationByAdminResponse{}, fmt.Errorf("failed to delete database and user: %v", err)
+		return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to delete database and user: %v", err))
 	}
 
 	if err := github.TriggerRemovePipelineWorkflow(application); err != nil {
-		return CancelApproveApplicationByAdminResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+		return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
 	}
 
 	application.Status = models.ApplicationStatusPending
 	if err := s.db.Save(&application).Error; err != nil {
-		return CancelApproveApplicationByAdminResponse{}, errors.New("failed to update application status")
+		return CancelApproveApplicationByAdminResponse{}, errors.Internal("failed to update application status")
 	}
 
 	return CancelApproveApplicationByAdminResponse{
@@ -255,18 +255,18 @@ type UpdateCustomHostnameByAdminResponse struct {
 	Message string `json:"message"`
 }
 
-func (s *AdminService) UpdatePrimaryHostnameByAdmin(appId uint, request UpdateCustomHostnameRequest) (UpdateCustomHostnameByAdminResponse, error) {
+func (s *AdminService) UpdatePrimaryHostnameByAdmin(appId uint, request UpdateCustomHostnameRequest) (UpdateCustomHostnameByAdminResponse, errors.CustomError) {
 	var application models.Application
 	if err := s.db.First(&application, appId).Error; err != nil {
-		return UpdateCustomHostnameByAdminResponse{}, errors.New("application not found")
+		return UpdateCustomHostnameByAdminResponse{}, errors.NotFound("application not found")
 	}
 
 	if application.Status != models.ApplicationStatusApproved {
-		return UpdateCustomHostnameByAdminResponse{}, errors.New("application not approved")
+		return UpdateCustomHostnameByAdminResponse{}, errors.BadRequest("application not approved")
 	}
 
 	if err := github.TriggerUpdatePrimaryHostname(application, request.Hostname); err != nil {
-		return UpdateCustomHostnameByAdminResponse{}, fmt.Errorf("failed to trigger GitHub workflow: %v", err)
+		return UpdateCustomHostnameByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
 	}
 
 	return UpdateCustomHostnameByAdminResponse{
@@ -289,10 +289,10 @@ type GetApplicationByAdminResponse struct {
 	CreationDate    string   `json:"creation_date"`
 }
 
-func (s *AdminService) GetApplicationByAdmin(appId uint) (GetApplicationByAdminResponse, error) {
+func (s *AdminService) GetApplicationByAdmin(appId uint) (GetApplicationByAdminResponse, errors.CustomError) {
 	var application models.Application
 	if err := s.db.Preload("Owner").Preload("ExtraHostnames").First(&application, appId).Error; err != nil {
-		return GetApplicationByAdminResponse{}, errors.New("application not found")
+		return GetApplicationByAdminResponse{}, errors.NotFound("application not found")
 	}
 
 	return GetApplicationByAdminResponse{
