@@ -20,7 +20,7 @@ func NewAdminHandler(adminService *services.AdminService) *AdminHandler {
 func (h *AdminHandler) GetUsersByAdmin(c *gin.Context) {
 	response, err := h.adminService.GetUsersByAdmin()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -32,7 +32,7 @@ func (h *AdminHandler) GetUserByAdmin(c *gin.Context) {
 
 	response, err := h.adminService.GetUserByAdmin(uint(userId))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -44,7 +44,7 @@ func (h *AdminHandler) GetApplicationsByAdmin(c *gin.Context) {
 
 	response, err := h.adminService.GetApplicationsByAdmin(uint(userId))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -54,7 +54,7 @@ func (h *AdminHandler) GetApplicationsByAdmin(c *gin.Context) {
 func (h *AdminHandler) GetAllApplicationsByAdmin(c *gin.Context) {
 	response, err := h.adminService.GetAllApplicationsByAdmin()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *AdminHandler) ApproveApplicationByAdmin(c *gin.Context) {
 
 	response, err := h.adminService.ApproveApplicationByAdmin(uint(appId))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -78,7 +78,7 @@ func (h *AdminHandler) CancelApproveApplicationByAdmin(c *gin.Context) {
 
 	response, err := h.adminService.CancelApproveApplicationByAdmin(uint(appId))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -90,13 +90,13 @@ func (h *AdminHandler) UpdatePrimaryHostnameByAdmin(c *gin.Context) {
 
 	var req services.UpdateCustomHostnameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
 	response, err := h.adminService.UpdatePrimaryHostnameByAdmin(uint(appId), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -108,7 +108,7 @@ func (h *AdminHandler) GetApplicationByAdmin(c *gin.Context) {
 
 	response, err := h.adminService.GetApplicationByAdmin(uint(appId))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
