@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/injunweb/backend-server/internal/services"
+	"github.com/injunweb/backend-server/pkg/errors"
 	"github.com/injunweb/backend-server/pkg/webpush"
 )
 
@@ -26,7 +27,7 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 
 	notifications, err := h.notificationService.GetUserNotifications(userId.(uint))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -38,7 +39,7 @@ func (h *NotificationHandler) MarkAllAsRead(c *gin.Context) {
 
 	err := h.notificationService.MarkAllAsRead(userId.(uint))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -49,13 +50,13 @@ func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
 	userId, _ := c.Get("user_id")
 	notificationId, err := strconv.ParseUint(c.Param("notificationId"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
+		c.Error(errors.BadRequest("invalid notification ID"))
 		return
 	}
 
 	err = h.notificationService.DeleteNotification(userId.(uint), uint(notificationId))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -67,13 +68,18 @@ func (h *NotificationHandler) Subscribe(c *gin.Context) {
 
 	var subscription webpush.Subscription
 	if err := c.ShouldBindJSON(&subscription); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subscription data"})
+		c.Error(errors.BadRequest("invalid subscription data"))
 		return
 	}
 
-	err := h.userService.AddSubscription(userID.(uint), subscription.Endpoint, subscription.Keys.P256dh, subscription.Keys.Auth)
+	err := h.userService.AddSubscription(
+		userID.(uint),
+		subscription.Endpoint,
+		subscription.Keys.P256dh,
+		subscription.Keys.Auth,
+	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save subscription"})
+		c.Error(err)
 		return
 	}
 
