@@ -3,6 +3,7 @@ package errors
 import "net/http"
 
 type CustomError interface {
+	error
 	GetType() string
 	GetStatus() int
 	GetMessage() string
@@ -12,6 +13,10 @@ type errorImpl struct {
 	Type    string
 	Message string
 	Status  int
+}
+
+func (e errorImpl) Error() string {
+	return e.Message
 }
 
 func (e errorImpl) GetType() string {
