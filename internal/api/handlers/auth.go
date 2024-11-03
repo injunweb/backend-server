@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/injunweb/backend-server/internal/services"
-
 	"github.com/gin-gonic/gin"
+	"github.com/injunweb/backend-server/internal/services"
+	"github.com/injunweb/backend-server/pkg/errors"
 )
 
 type AuthHandler struct {
@@ -19,13 +19,13 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var loginRequest services.LoginRequest
 	if err := c.ShouldBindJSON(&loginRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(errors.BadRequest("invalid request format"))
 		return
 	}
 
 	response, err := h.authService.Login(loginRequest)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -35,13 +35,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var registerRequest services.RegisterRequest
 	if err := c.ShouldBindJSON(&registerRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.Error(errors.BadRequest("invalid request format"))
 		return
 	}
 
 	response, err := h.authService.Register(registerRequest)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
