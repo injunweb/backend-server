@@ -1,9 +1,8 @@
 package services
 
 import (
-	"errors"
-
 	"github.com/injunweb/backend-server/internal/models"
+	"github.com/injunweb/backend-server/pkg/errors"
 	"github.com/injunweb/backend-server/pkg/validator"
 
 	"gorm.io/gorm"
@@ -24,10 +23,10 @@ type GetUserResponse struct {
 	IsAdmin  bool   `json:"is_admin"`
 }
 
-func (s *UserService) GetUser(userId uint) (GetUserResponse, error) {
+func (s *UserService) GetUser(userId uint) (GetUserResponse, errors.CustomError) {
 	var user models.User
 	if err := s.db.First(&user, userId).Error; err != nil {
-		return GetUserResponse{}, errors.New("user not found")
+		return GetUserResponse{}, errors.NotFound("user not found")
 	}
 
 	return GetUserResponse{
@@ -47,21 +46,24 @@ type UpdateUserResponse struct {
 	Message string `json:"message"`
 }
 
-func (s *UserService) UpdateUser(userId uint, req UpdateUserRequest) (UpdateUserResponse, error) {
+func (s *UserService) UpdateUser(userId uint, req UpdateUserRequest) (UpdateUserResponse, errors.CustomError) {
 	var user models.User
 	if err := s.db.First(&user, userId).Error; err != nil {
-		return UpdateUserResponse{}, errors.New("user not found")
+		return UpdateUserResponse{}, errors.NotFound("user not found")
 	}
 
 	if !validator.IsValidEmail(req.Email) {
-		return UpdateUserResponse{}, errors.New("invalid email")
+		return UpdateUserResponse{}, errors.BadRequest("invalid email")
 	}
 	if !validator.IsValidUsername(req.Username) {
-		return UpdateUserResponse{}, errors.New("invalid username")
+		return UpdateUserResponse{}, errors.BadRequest("invalid username")
 	}
 
+	user.Email = req.Email
+	user.Username = req.Username
+
 	if err := s.db.Save(&user).Error; err != nil {
-		return UpdateUserResponse{}, errors.New("failed to update user")
+		return UpdateUserResponse{}, errors.Internal("failed to update user")
 	}
 
 	return UpdateUserResponse{
@@ -69,7 +71,7 @@ func (s *UserService) UpdateUser(userId uint, req UpdateUserRequest) (UpdateUser
 	}, nil
 }
 
-func (s *UserService) AddSubscription(userID uint, endpoint, p256dh, auth string) error {
+func (s *UserService) AddSubscription(userID uint, endpoint, p256dh, auth string) errors.CustomError {
 	subscription := models.Subscription{
 		UserID:   userID,
 		Endpoint: endpoint,
@@ -79,15 +81,15 @@ func (s *UserService) AddSubscription(userID uint, endpoint, p256dh, auth string
 
 	result := s.db.Create(&subscription)
 	if result.Error != nil {
-		return errors.New("failed to add subscription")
+		return errors.Internal("failed to add subscription")
 	}
 	return nil
 }
 
-func (s *UserService) GetUserSubscriptions(userID uint) ([]models.Subscription, error) {
+func (s *UserService) GetUserSubscriptions(userID uint) ([]models.Subscription, errors.CustomError) {
 	var subscriptions []models.Subscription
 	if err := s.db.Where("user_id = ?", userID).Find(&subscriptions).Error; err != nil {
-		return nil, errors.New("failed to retrieve subscriptions")
+		return nil, errors.Internal("failed to retrieve subscriptions")
 	}
 	return subscriptions, nil
 }
