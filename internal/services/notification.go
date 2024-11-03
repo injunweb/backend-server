@@ -1,9 +1,8 @@
 package services
 
 import (
-	"errors"
-
 	"github.com/injunweb/backend-server/internal/models"
+	"github.com/injunweb/backend-server/pkg/errors"
 	"github.com/injunweb/backend-server/pkg/webpush"
 
 	"gorm.io/gorm"
@@ -18,18 +17,18 @@ func NewNotificationService(db *gorm.DB, userService *UserService) *Notification
 	return &NotificationService{db: db, userService: userService}
 }
 
-func (s *NotificationService) CreateNotification(userID uint, message string) error {
+func (s *NotificationService) CreateNotification(userID uint, message string) errors.CustomError {
 	notification := models.Notification{
 		UserID:  userID,
 		Message: message,
 	}
 	if err := s.db.Create(&notification).Error; err != nil {
-		return errors.New("failed to create notification")
+		return errors.Internal("failed to create notification")
 	}
 
 	subscriptions, err := s.userService.GetUserSubscriptions(userID)
 	if err != nil {
-		return err
+		return errors.Internal("failed to get user subscriptions")
 	}
 
 	for _, sub := range subscriptions {
@@ -49,15 +48,17 @@ func (s *NotificationService) CreateNotification(userID uint, message string) er
 	return nil
 }
 
-func (s *NotificationService) CreateAdminNotification(message string) error {
+func (s *NotificationService) CreateAdminNotification(message string) errors.CustomError {
 	var users []models.User
 	err := s.db.Where("is_admin = ?", true).Find(&users).Error
 	if err != nil {
-		return errors.New("failed to retrieve users")
+		return errors.Internal("failed to retrieve users")
 	}
 
 	for _, user := range users {
-		s.CreateNotification(user.ID, message)
+		if err := s.CreateNotification(user.ID, message); err != nil {
+			return errors.Internal("failed to create admin notification")
+		}
 	}
 	return nil
 }
@@ -73,7 +74,7 @@ type GetUsersNotificationsResponse struct {
 	UnreadCount int `json:"unread_count"`
 }
 
-func (s *NotificationService) GetUserNotifications(userId uint) (GetUsersNotificationsResponse, error) {
+func (s *NotificationService) GetUserNotifications(userId uint) (GetUsersNotificationsResponse, errors.CustomError) {
 	var notifications []models.Notification
 	err := s.db.
 		Where("user_id = ?", userId).
@@ -81,7 +82,7 @@ func (s *NotificationService) GetUserNotifications(userId uint) (GetUsersNotific
 		Find(&notifications).Error
 
 	if err != nil {
-		return GetUsersNotificationsResponse{}, errors.New("failed to retrieve notifications")
+		return GetUsersNotificationsResponse{}, errors.Internal("failed to retrieve notifications")
 	}
 
 	response := GetUsersNotificationsResponse{
@@ -109,29 +110,29 @@ func (s *NotificationService) GetUserNotifications(userId uint) (GetUsersNotific
 	return response, nil
 }
 
-func (s *NotificationService) MarkAllAsRead(userId uint) error {
+func (s *NotificationService) MarkAllAsRead(userId uint) errors.CustomError {
 	result := s.db.
 		Model(&models.Notification{}).
 		Where("user_id = ? AND is_read = ?", userId, false).
 		Updates(map[string]interface{}{"is_read": true})
 
 	if result.Error != nil {
-		return result.Error
+		return errors.Internal("failed to mark notifications as read")
 	}
 
 	return nil
 }
 
-func (s *NotificationService) DeleteNotification(userId uint, notificationId uint) error {
+func (s *NotificationService) DeleteNotification(userId uint, notificationId uint) errors.CustomError {
 	result := s.db.
 		Where("id = ? AND user_id = ?", notificationId, userId).
 		Delete(&models.Notification{})
 
 	if result.Error != nil {
-		return result.Error
+		return errors.Internal("failed to delete notification")
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("notification not found")
+		return errors.NotFound("notification not found")
 	}
 
 	return nil
