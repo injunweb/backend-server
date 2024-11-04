@@ -84,28 +84,38 @@ func (s *ApplicationService) SubmitApplication(userId uint, req SubmitApplicatio
 		return SubmitApplicationResponse{}, errors.BadRequest("invalid port")
 	}
 
-	var existingApp models.Application
-	if err := s.db.Where("name = ?", req.Name).First(&existingApp).Error; err == nil {
-		return SubmitApplicationResponse{}, errors.Conflict("application name already exists")
-	}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var existingApp models.Application
+		if err := tx.Where("name = ?", req.Name).First(&existingApp).Error; err == nil {
+			return errors.Conflict("application name already exists")
+		}
 
-	application := models.Application{
-		Name:            req.Name,
-		GitURL:          req.GitURL,
-		Branch:          req.Branch,
-		Port:            req.Port,
-		Description:     req.Description,
-		Status:          models.ApplicationStatusPending,
-		PrimaryHostname: fmt.Sprintf("%s.%s", req.Name, "ijw.app"),
-		ExtraHostnames:  []models.ExtraHostnames{},
-		OwnerID:         userId,
-	}
+		application := models.Application{
+			Name:            req.Name,
+			GitURL:          req.GitURL,
+			Branch:          req.Branch,
+			Port:            req.Port,
+			Description:     req.Description,
+			Status:          models.ApplicationStatusPending,
+			PrimaryHostname: fmt.Sprintf("%s.%s", req.Name, "ijw.app"),
+			ExtraHostnames:  []models.ExtraHostnames{},
+			OwnerID:         userId,
+		}
 
-	if err := s.db.Create(&application).Error; err != nil {
-		return SubmitApplicationResponse{}, errors.Internal("failed to submit application")
-	}
+		if err := tx.Create(&application).Error; err != nil {
+			return errors.Internal("failed to submit application")
+		}
 
-	s.notificationService.CreateAdminNotification(fmt.Sprintf("New application submitted: %s", req.Name))
+		s.notificationService.CreateAdminNotification(fmt.Sprintf("New application submitted: %s", req.Name))
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return SubmitApplicationResponse{}, customErr
+		}
+		return SubmitApplicationResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
+	}
 
 	return SubmitApplicationResponse{
 		Message: "Application submitted successfully",
@@ -162,48 +172,58 @@ type DeleteApplicationResponse struct {
 }
 
 func (s *ApplicationService) DeleteApplication(userId uint, appId uint) (DeleteApplicationResponse, errors.CustomError) {
-	var application models.Application
-	if err := s.db.First(&application, appId).Error; err != nil {
-		return DeleteApplicationResponse{}, errors.NotFound("application not found")
-	}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var application models.Application
+		if err := tx.First(&application, appId).Error; err != nil {
+			return errors.NotFound("application not found")
+		}
 
-	if application.OwnerID != userId {
-		return DeleteApplicationResponse{}, errors.Forbidden("permission denied")
-	}
+		if application.OwnerID != userId {
+			return errors.Forbidden("permission denied")
+		}
 
-	if application.Status == models.ApplicationStatusApproved {
-		if kubernetes.NamespaceExists(application.Name) {
-			if err := kubernetes.DeleteNamespace(application.Name); err != nil {
-				return DeleteApplicationResponse{}, errors.Internal(fmt.Sprintf("failed to delete namespace: %v", err))
+		if application.Status == models.ApplicationStatusApproved {
+			if kubernetes.NamespaceExists(application.Name) {
+				if err := kubernetes.DeleteNamespace(application.Name); err != nil {
+					return errors.Internal(fmt.Sprintf("failed to delete namespace: %v", err))
+				}
+			}
+
+			if exists, err := harbor.RepositoryExists(application.Name); err != nil {
+				return errors.Internal(fmt.Sprintf("failed to check Harbor repository: %v", err))
+			} else if exists {
+				if err := harbor.DeleteRepository(application.Name); err != nil {
+					return errors.Internal(fmt.Sprintf("failed to delete Harbor repository: %v", err))
+				}
+			}
+
+			if err := vault.DeleteSecret(application.Name); err != nil {
+				return errors.Internal(fmt.Sprintf("failed to delete secret: %v", err))
+			}
+
+			if err := database.DeleteDatabaseAndUser(application.Name); err != nil {
+				return errors.Internal(fmt.Sprintf("failed to delete database and user: %v", err))
+			}
+
+			if err := github.TriggerRemovePipelineWorkflow(application); err != nil {
+				return errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
 			}
 		}
 
-		if exists, err := harbor.RepositoryExists(application.Name); err != nil {
-			return DeleteApplicationResponse{}, errors.Internal(fmt.Sprintf("failed to check Harbor repository: %v", err))
-		} else if exists {
-			if err := harbor.DeleteRepository(application.Name); err != nil {
-				return DeleteApplicationResponse{}, errors.Internal(fmt.Sprintf("failed to delete Harbor repository: %v", err))
-			}
+		if err := tx.Delete(&application).Error; err != nil {
+			return errors.Internal("failed to delete application")
 		}
 
-		if err := vault.DeleteSecret(application.Name); err != nil {
-			return DeleteApplicationResponse{}, errors.Internal(fmt.Sprintf("failed to delete secret: %v", err))
-		}
+		s.notificationService.CreateAdminNotification(fmt.Sprintf("Application deleted: %s", application.Name))
+		return nil
+	})
 
-		if err := database.DeleteDatabaseAndUser(application.Name); err != nil {
-			return DeleteApplicationResponse{}, errors.Internal(fmt.Sprintf("failed to delete database and user: %v", err))
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return DeleteApplicationResponse{}, customErr
 		}
-
-		if err := github.TriggerRemovePipelineWorkflow(application); err != nil {
-			return DeleteApplicationResponse{}, errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
-		}
+		return DeleteApplicationResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
-
-	if err := s.db.Delete(&application).Error; err != nil {
-		return DeleteApplicationResponse{}, errors.Internal("failed to delete application")
-	}
-
-	s.notificationService.CreateAdminNotification(fmt.Sprintf("Application deleted: %s", application.Name))
 
 	return DeleteApplicationResponse{
 		Message: "Application deleted successfully",
@@ -223,51 +243,62 @@ func (s *ApplicationService) AddExtralHostname(userId uint, appId uint, req AddE
 		return AddExtralHostnameResponse{}, errors.BadRequest("invalid hostname")
 	}
 
-	var application models.Application
-	if err := s.db.First(&application, appId).Error; err != nil {
-		return AddExtralHostnameResponse{}, errors.NotFound("application not found")
-	}
-
-	if application.OwnerID != userId {
-		return AddExtralHostnameResponse{}, errors.Forbidden("permission denied")
-	}
-
-	if application.Status != models.ApplicationStatusApproved {
-		return AddExtralHostnameResponse{}, errors.BadRequest("application not approved")
-	}
-
-	if application.PrimaryHostname == req.Hostname {
-		return AddExtralHostnameResponse{}, errors.BadRequest("hostname already exists as primary hostname")
-	}
-
-	var existingHostname models.ExtraHostnames
-	err := s.db.Unscoped().Where("hostname = ?", req.Hostname).First(&existingHostname).Error
-
-	if err == nil {
-		if !existingHostname.DeletedAt.Valid {
-			return AddExtralHostnameResponse{}, errors.Conflict("hostname already exists")
-		}
-		if err := s.db.Unscoped().Model(&existingHostname).Update("deleted_at", nil).Error; err != nil {
-			return AddExtralHostnameResponse{}, errors.Internal("failed to restore soft deleted hostname")
-		}
-		if err := s.db.Model(&existingHostname).Update("application_id", application.ID).Error; err != nil {
-			return AddExtralHostnameResponse{}, errors.Internal("failed to update hostname")
-		}
-	} else if err == gorm.ErrRecordNotFound {
-		newHostname := models.ExtraHostnames{
-			ApplicationID: application.ID,
-			Hostname:      req.Hostname,
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var application models.Application
+		if err := tx.First(&application, appId).Error; err != nil {
+			return errors.NotFound("application not found")
 		}
 
-		if err := s.db.Create(&newHostname).Error; err != nil {
-			return AddExtralHostnameResponse{}, errors.Internal("failed to add extra hostname")
+		if application.OwnerID != userId {
+			return errors.Forbidden("permission denied")
 		}
-	} else {
-		return AddExtralHostnameResponse{}, errors.Internal("failed to check hostname existence")
-	}
 
-	if err := github.TriggerAddExtraHostnameWorkflow(application, req.Hostname); err != nil {
-		return AddExtralHostnameResponse{}, errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
+		if application.Status != models.ApplicationStatusApproved {
+			return errors.BadRequest("application not approved")
+		}
+
+		if application.PrimaryHostname == req.Hostname {
+			return errors.BadRequest("hostname already exists as primary hostname")
+		}
+
+		var existingHostname models.ExtraHostnames
+		err := tx.Unscoped().Where("hostname = ?", req.Hostname).First(&existingHostname).Error
+
+		if err == nil {
+			if !existingHostname.DeletedAt.Valid {
+				return errors.Conflict("hostname already exists")
+			}
+			if err := tx.Unscoped().Model(&existingHostname).Update("deleted_at", nil).Error; err != nil {
+				return errors.Internal("failed to restore soft deleted hostname")
+			}
+			if err := tx.Model(&existingHostname).Update("application_id", application.ID).Error; err != nil {
+				return errors.Internal("failed to update hostname")
+			}
+		} else if err == gorm.ErrRecordNotFound {
+			newHostname := models.ExtraHostnames{
+				ApplicationID: application.ID,
+				Hostname:      req.Hostname,
+			}
+
+			if err := tx.Create(&newHostname).Error; err != nil {
+				return errors.Internal("failed to add extra hostname")
+			}
+		} else {
+			return errors.Internal("failed to check hostname existence")
+		}
+
+		if err := github.TriggerAddExtraHostnameWorkflow(application, req.Hostname); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return AddExtralHostnameResponse{}, customErr
+		}
+		return AddExtralHostnameResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
 
 	return AddExtralHostnameResponse{
@@ -284,34 +315,45 @@ type DeleteAdditionalHostnameResponse struct {
 }
 
 func (s *ApplicationService) DeleteExtraHostname(userId uint, appId uint, req DeleteAdditionalHostnameRequest) (DeleteAdditionalHostnameResponse, errors.CustomError) {
-	var application models.Application
-	if err := s.db.First(&application, appId).Error; err != nil {
-		return DeleteAdditionalHostnameResponse{}, errors.NotFound("application not found")
-	}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var application models.Application
+		if err := tx.First(&application, appId).Error; err != nil {
+			return errors.NotFound("application not found")
+		}
 
-	if application.OwnerID != userId {
-		return DeleteAdditionalHostnameResponse{}, errors.Forbidden("permission denied")
-	}
+		if application.OwnerID != userId {
+			return errors.Forbidden("permission denied")
+		}
 
-	if application.Status != models.ApplicationStatusApproved {
-		return DeleteAdditionalHostnameResponse{}, errors.BadRequest("application not approved")
-	}
+		if application.Status != models.ApplicationStatusApproved {
+			return errors.BadRequest("application not approved")
+		}
 
-	if application.PrimaryHostname == req.Hostname {
-		return DeleteAdditionalHostnameResponse{}, errors.BadRequest("cannot delete primary hostname")
-	}
+		if application.PrimaryHostname == req.Hostname {
+			return errors.BadRequest("cannot delete primary hostname")
+		}
 
-	var hostname models.ExtraHostnames
-	if err := s.db.Where("application_id = ? AND hostname = ?", application.ID, req.Hostname).First(&hostname).Error; err != nil {
-		return DeleteAdditionalHostnameResponse{}, errors.NotFound("hostname not found")
-	}
+		var hostname models.ExtraHostnames
+		if err := tx.Where("application_id = ? AND hostname = ?", application.ID, req.Hostname).First(&hostname).Error; err != nil {
+			return errors.NotFound("hostname not found")
+		}
 
-	if err := s.db.Delete(&hostname).Error; err != nil {
-		return DeleteAdditionalHostnameResponse{}, errors.Internal("failed to delete extra hostname")
-	}
+		if err := tx.Delete(&hostname).Error; err != nil {
+			return errors.Internal("failed to delete extra hostname")
+		}
 
-	if err := github.TriggerDeleteExtraHostnameWorkflow(application, req.Hostname); err != nil {
-		return DeleteAdditionalHostnameResponse{}, errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
+		if err := github.TriggerDeleteExtraHostnameWorkflow(application, req.Hostname); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return DeleteAdditionalHostnameResponse{}, customErr
+		}
+		return DeleteAdditionalHostnameResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
 
 	return DeleteAdditionalHostnameResponse{
@@ -371,26 +413,37 @@ type UpdateEnvironmentResponse struct {
 }
 
 func (s *ApplicationService) UpdateEnvironment(userId uint, appId uint, req UpdateEnvironmentRequest) (UpdateEnvironmentResponse, errors.CustomError) {
-	var application models.Application
-	if err := s.db.First(&application, appId).Error; err != nil {
-		return UpdateEnvironmentResponse{}, errors.NotFound("application not found")
-	}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var application models.Application
+		if err := tx.First(&application, appId).Error; err != nil {
+			return errors.NotFound("application not found")
+		}
 
-	if application.OwnerID != userId {
-		return UpdateEnvironmentResponse{}, errors.Forbidden("permission denied")
-	}
+		if application.OwnerID != userId {
+			return errors.Forbidden("permission denied")
+		}
 
-	if application.Status != models.ApplicationStatusApproved {
-		return UpdateEnvironmentResponse{}, errors.BadRequest("application not approved")
-	}
+		if application.Status != models.ApplicationStatusApproved {
+			return errors.BadRequest("application not approved")
+		}
 
-	data := make(map[string]interface{})
-	for _, env := range req.Environments {
-		data[env.Key] = env.Value
-	}
+		data := make(map[string]interface{})
+		for _, env := range req.Environments {
+			data[env.Key] = env.Value
+		}
 
-	if err := vault.UpdateSecret(application.Name, data); err != nil {
-		return UpdateEnvironmentResponse{}, errors.Internal(fmt.Sprintf("failed to write to Vault: %v", err))
+		if err := vault.UpdateSecret(application.Name, data); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to write to Vault: %v", err))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return UpdateEnvironmentResponse{}, customErr
+		}
+		return UpdateEnvironmentResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
 
 	return UpdateEnvironmentResponse{
