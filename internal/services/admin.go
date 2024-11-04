@@ -155,42 +155,54 @@ type ApproveApplicationByAdminResponse struct {
 
 func (s *AdminService) ApproveApplicationByAdmin(appId uint) (ApproveApplicationByAdminResponse, errors.CustomError) {
 	var application models.Application
-	if err := s.db.First(&application, appId).Error; err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.NotFound("application not found")
-	}
-
-	if application.Status != models.ApplicationStatusPending {
-		return ApproveApplicationByAdminResponse{}, errors.BadRequest("application already approved")
-	}
-
-	if err := vault.InitSecret(application.Name, map[string]interface{}{"PORT": fmt.Sprintf("%d", application.Port)}); err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to initialize Vault secret: %v", err))
-	}
-
-	if err := github.TriggerWriteValuesWorkflow(application); err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
-	}
-
-	password, err := database.CreateDatabaseAndUser(application.Name)
-	if err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to create database and user: %v", err))
-	}
-
 	var owner models.User
-	if err := s.db.First(&owner, application.OwnerID).Error; err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.NotFound("failed to find user email")
-	}
 
-	if err := email.SendApprovalEmail(owner.Email, application.Name, password); err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to send email: %v", err))
-	}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.First(&application, appId).Error; err != nil {
+			return errors.NotFound("application not found")
+		}
 
-	application.Status = models.ApplicationStatusApproved
-	if err := s.db.Save(&application).Error; err != nil {
-		return ApproveApplicationByAdminResponse{}, errors.Internal("failed to update application status")
-	}
+		if application.Status != models.ApplicationStatusPending {
+			return errors.BadRequest("application already approved")
+		}
 
-	s.notificationService.CreateNotification(application.OwnerID, fmt.Sprintf("Your application %s has been approved", application.Name))
+		if err := tx.First(&owner, application.OwnerID).Error; err != nil {
+			return errors.NotFound("failed to find user email")
+		}
+
+		if err := vault.InitSecret(application.Name, map[string]interface{}{"PORT": fmt.Sprintf("%d", application.Port)}); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to initialize Vault secret: %v", err))
+		}
+
+		if err := github.TriggerWriteValuesWorkflow(application); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
+		}
+
+		password, err := database.CreateDatabaseAndUser(application.Name)
+		if err != nil {
+			return errors.Internal(fmt.Sprintf("failed to create database and user: %v", err))
+		}
+
+		if err := email.SendApprovalEmail(owner.Email, application.Name, password); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to send email: %v", err))
+		}
+
+		application.Status = models.ApplicationStatusApproved
+		if err := tx.Save(&application).Error; err != nil {
+			return errors.Internal("failed to update application status")
+		}
+
+		s.notificationService.CreateNotification(application.OwnerID, fmt.Sprintf("Your application %s has been approved", application.Name))
+
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return ApproveApplicationByAdminResponse{}, customErr
+		}
+		return ApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
+	}
 
 	return ApproveApplicationByAdminResponse{
 		Message: "Application approved successfully",
@@ -203,43 +215,55 @@ type CancelApproveApplicationByAdminResponse struct {
 
 func (s *AdminService) CancelApproveApplicationByAdmin(appId uint) (CancelApproveApplicationByAdminResponse, errors.CustomError) {
 	var application models.Application
-	if err := s.db.First(&application, appId).Error; err != nil {
-		return CancelApproveApplicationByAdminResponse{}, errors.NotFound("application not found")
-	}
 
-	if application.Status != models.ApplicationStatusApproved {
-		return CancelApproveApplicationByAdminResponse{}, errors.BadRequest("application not approved")
-	}
-
-	if kubernetes.NamespaceExists(application.Name) {
-		if err := kubernetes.DeleteNamespace(application.Name); err != nil {
-			return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to delete namespace: %v", err))
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.First(&application, appId).Error; err != nil {
+			return errors.NotFound("application not found")
 		}
-	}
 
-	if exists, err := harbor.RepositoryExists(application.Name); err != nil {
-		return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to check Harbor repository: %v", err))
-	} else if exists {
-		if err := harbor.DeleteRepository(application.Name); err != nil {
-			return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to delete Harbor repository: %v", err))
+		if application.Status != models.ApplicationStatusApproved {
+			return errors.BadRequest("application not approved")
 		}
-	}
 
-	if err := vault.DeleteSecret(application.Name); err != nil {
-		return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to delete secret: %v", err))
-	}
+		if kubernetes.NamespaceExists(application.Name) {
+			if err := kubernetes.DeleteNamespace(application.Name); err != nil {
+				return errors.Internal(fmt.Sprintf("failed to delete namespace: %v", err))
+			}
+		}
 
-	if err := database.DeleteDatabaseAndUser(application.Name); err != nil {
-		return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to delete database and user: %v", err))
-	}
+		if exists, err := harbor.RepositoryExists(application.Name); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to check Harbor repository: %v", err))
+		} else if exists {
+			if err := harbor.DeleteRepository(application.Name); err != nil {
+				return errors.Internal(fmt.Sprintf("failed to delete Harbor repository: %v", err))
+			}
+		}
 
-	if err := github.TriggerRemovePipelineWorkflow(application); err != nil {
-		return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
-	}
+		if err := vault.DeleteSecret(application.Name); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to delete secret: %v", err))
+		}
 
-	application.Status = models.ApplicationStatusPending
-	if err := s.db.Save(&application).Error; err != nil {
-		return CancelApproveApplicationByAdminResponse{}, errors.Internal("failed to update application status")
+		if err := database.DeleteDatabaseAndUser(application.Name); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to delete database and user: %v", err))
+		}
+
+		if err := github.TriggerRemovePipelineWorkflow(application); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
+		}
+
+		application.Status = models.ApplicationStatusPending
+		if err := tx.Save(&application).Error; err != nil {
+			return errors.Internal("failed to update application status")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return CancelApproveApplicationByAdminResponse{}, customErr
+		}
+		return CancelApproveApplicationByAdminResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
 
 	return CancelApproveApplicationByAdminResponse{
@@ -257,16 +281,33 @@ type UpdateCustomHostnameByAdminResponse struct {
 
 func (s *AdminService) UpdatePrimaryHostnameByAdmin(appId uint, request UpdateCustomHostnameRequest) (UpdateCustomHostnameByAdminResponse, errors.CustomError) {
 	var application models.Application
-	if err := s.db.First(&application, appId).Error; err != nil {
-		return UpdateCustomHostnameByAdminResponse{}, errors.NotFound("application not found")
-	}
 
-	if application.Status != models.ApplicationStatusApproved {
-		return UpdateCustomHostnameByAdminResponse{}, errors.BadRequest("application not approved")
-	}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.First(&application, appId).Error; err != nil {
+			return errors.NotFound("application not found")
+		}
 
-	if err := github.TriggerUpdatePrimaryHostname(application, request.Hostname); err != nil {
-		return UpdateCustomHostnameByAdminResponse{}, errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
+		if application.Status != models.ApplicationStatusApproved {
+			return errors.BadRequest("application not approved")
+		}
+
+		application.PrimaryHostname = request.Hostname
+		if err := tx.Save(&application).Error; err != nil {
+			return errors.Internal("failed to update application hostname")
+		}
+
+		if err := github.TriggerUpdatePrimaryHostname(application, request.Hostname); err != nil {
+			return errors.Internal(fmt.Sprintf("failed to trigger GitHub workflow: %v", err))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return UpdateCustomHostnameByAdminResponse{}, customErr
+		}
+		return UpdateCustomHostnameByAdminResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
 
 	return UpdateCustomHostnameByAdminResponse{
