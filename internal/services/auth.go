@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/injunweb/backend-server/internal/config"
@@ -34,12 +35,23 @@ type LoginResponse struct {
 
 func (s *AuthService) Login(req LoginRequest) (LoginResponse, errors.CustomError) {
 	var user models.User
-	if err := s.db.Where("username = ?", req.Username).First(&user).Error; err != nil {
-		return LoginResponse{}, errors.Unauthorized("invalid credentials")
-	}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("username = ?", req.Username).First(&user).Error; err != nil {
+			return errors.Unauthorized("invalid credentials")
+		}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		return LoginResponse{}, errors.Unauthorized("invalid credentials")
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+			return errors.Unauthorized("invalid credentials")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return LoginResponse{}, customErr
+		}
+		return LoginResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -82,28 +94,38 @@ func (s *AuthService) Register(req RegisterRequest) (RegisterResponse, errors.Cu
 		return RegisterResponse{}, errors.BadRequest("invalid password")
 	}
 
-	var existingUser models.User
-	if err := s.db.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
-		return RegisterResponse{}, errors.Conflict("username already exists")
-	}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var existingUser models.User
+		if err := tx.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+			return errors.Conflict("username already exists")
+		}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return errors.Internal("failed to hash password")
+		}
+
+		user := models.User{
+			Username: req.Username,
+			Email:    req.Email,
+			Password: string(hashedPassword),
+			IsAdmin:  false,
+		}
+
+		if err := tx.Create(&user).Error; err != nil {
+			return errors.Internal("failed to register user")
+		}
+
+		s.notificationService.CreateAdminNotification("New user registered: " + user.Username)
+		return nil
+	})
+
 	if err != nil {
-		return RegisterResponse{}, errors.Internal("failed to hash password")
+		if customErr, ok := err.(errors.CustomError); ok {
+			return RegisterResponse{}, customErr
+		}
+		return RegisterResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
-
-	user := models.User{
-		Username: req.Username,
-		Email:    req.Email,
-		Password: string(hashedPassword),
-		IsAdmin:  false,
-	}
-
-	if err := s.db.Create(&user).Error; err != nil {
-		return RegisterResponse{}, errors.Internal("failed to register user")
-	}
-
-	s.notificationService.CreateAdminNotification("New user registered: " + user.Username)
 
 	return RegisterResponse{
 		Message: "User registered successfully",
