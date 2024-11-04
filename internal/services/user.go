@@ -1,6 +1,8 @@
 package services
 
 import (
+	"fmt"
+
 	"github.com/injunweb/backend-server/internal/models"
 	"github.com/injunweb/backend-server/pkg/errors"
 	"github.com/injunweb/backend-server/pkg/validator"
@@ -47,23 +49,34 @@ type UpdateUserResponse struct {
 }
 
 func (s *UserService) UpdateUser(userId uint, req UpdateUserRequest) (UpdateUserResponse, errors.CustomError) {
-	var user models.User
-	if err := s.db.First(&user, userId).Error; err != nil {
-		return UpdateUserResponse{}, errors.NotFound("user not found")
-	}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var user models.User
+		if err := tx.First(&user, userId).Error; err != nil {
+			return errors.NotFound("user not found")
+		}
 
-	if !validator.IsValidEmail(req.Email) {
-		return UpdateUserResponse{}, errors.BadRequest("invalid email")
-	}
-	if !validator.IsValidUsername(req.Username) {
-		return UpdateUserResponse{}, errors.BadRequest("invalid username")
-	}
+		if !validator.IsValidEmail(req.Email) {
+			return errors.BadRequest("invalid email")
+		}
+		if !validator.IsValidUsername(req.Username) {
+			return errors.BadRequest("invalid username")
+		}
 
-	user.Email = req.Email
-	user.Username = req.Username
+		user.Email = req.Email
+		user.Username = req.Username
 
-	if err := s.db.Save(&user).Error; err != nil {
-		return UpdateUserResponse{}, errors.Internal("failed to update user")
+		if err := tx.Save(&user).Error; err != nil {
+			return errors.Internal("failed to update user")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return UpdateUserResponse{}, customErr
+		}
+		return UpdateUserResponse{}, errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
 
 	return UpdateUserResponse{
@@ -72,17 +85,27 @@ func (s *UserService) UpdateUser(userId uint, req UpdateUserRequest) (UpdateUser
 }
 
 func (s *UserService) AddSubscription(userID uint, endpoint, p256dh, auth string) errors.CustomError {
-	subscription := models.Subscription{
-		UserID:   userID,
-		Endpoint: endpoint,
-		P256dh:   p256dh,
-		Auth:     auth,
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		subscription := models.Subscription{
+			UserID:   userID,
+			Endpoint: endpoint,
+			P256dh:   p256dh,
+			Auth:     auth,
+		}
+
+		if err := tx.Create(&subscription).Error; err != nil {
+			return errors.Internal("failed to add subscription")
+		}
+		return nil
+	})
+
+	if err != nil {
+		if customErr, ok := err.(errors.CustomError); ok {
+			return customErr
+		}
+		return errors.Internal(fmt.Sprintf("transaction failed: %v", err))
 	}
 
-	result := s.db.Create(&subscription)
-	if result.Error != nil {
-		return errors.Internal("failed to add subscription")
-	}
 	return nil
 }
 
