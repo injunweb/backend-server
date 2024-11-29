@@ -1,5 +1,11 @@
 package validator
 
+import "strconv"
+
 func IsValidPort(port string) bool {
-	return port >= "1" && port <= "65535"
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		return false
+	}
+	return portNum >= 1 && portNum <= 65535
 }
