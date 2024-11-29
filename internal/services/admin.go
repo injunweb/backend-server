@@ -170,7 +170,7 @@ func (s *AdminService) ApproveApplicationByAdmin(appId uint) (ApproveApplication
 			return errors.NotFound("failed to find user email")
 		}
 
-		if err := vault.InitSecret(application.Name, map[string]interface{}{"PORT": fmt.Sprintf("%d", application.Port)}); err != nil {
+		if err := vault.InitSecret(application.Name, map[string]interface{}{"INIT": "INIT"}); err != nil {
 			return errors.Internal(fmt.Sprintf("failed to initialize Vault secret: %v", err))
 		}
 
