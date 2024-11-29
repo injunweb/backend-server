@@ -320,7 +320,7 @@ type GetApplicationByAdminResponse struct {
 	Name            string   `json:"name"`
 	GitURL          string   `json:"git_url"`
 	Branch          string   `json:"branch"`
-	Port            int      `json:"port"`
+	Port            string   `json:"port"`
 	Description     string   `json:"description"`
 	OwnerID         uint     `json:"owner_id"`
 	Status          string   `json:"status"`
