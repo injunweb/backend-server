@@ -14,7 +14,7 @@ type Application struct {
 	Name            string           `gorm:"type:varchar(255);uniqueIndex;not null" json:"name"`
 	GitURL          string           `gorm:"not null" json:"git_url"`
 	Branch          string           `gorm:"not null" json:"branch"`
-	Port            int              `gorm:"not null" json:"port"`
+	Port            string           `gorm:"not null" json:"port"`
 	Description     string           `json:"description"`
 	Status          string           `gorm:"default:'Pending'" json:"status"`
 	OwnerID         uint             `gorm:"not null" json:"owner_id"`
