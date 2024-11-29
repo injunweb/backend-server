@@ -67,7 +67,7 @@ type SubmitApplicationRequest struct {
 	Name        string `json:"name" binding:"required"`
 	GitURL      string `json:"git_url" binding:"required"`
 	Branch      string `json:"branch" binding:"required"`
-	Port        int    `json:"port" binding:"required"`
+	Port        string `json:"port" binding:"required"`
 	Description string `json:"description" binding:"required"`
 }
 
@@ -127,7 +127,7 @@ type GetApplicationResponse struct {
 	Name            string   `json:"name"`
 	GitURL          string   `json:"git_url"`
 	Branch          string   `json:"branch"`
-	Port            int      `json:"port"`
+	Port            string   `json:"port"`
 	Description     string   `json:"description"`
 	CreatedAt       string   `json:"created_at"`
 	OwnerID         uint     `json:"owner_id"`
