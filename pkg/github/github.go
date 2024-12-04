@@ -17,7 +17,7 @@ func TriggerWriteValuesWorkflow(app models.Application) error {
 			"appName":         app.Name,
 			"git":             app.GitURL,
 			"branch":          app.Branch,
-			"port":            fmt.Sprintf("%d", app.Port),
+			"port":            app.Port,
 			"primaryHostname": app.PrimaryHostname,
 		},
 	}
